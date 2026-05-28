@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "jatalk-1274b"
+  },
+  "targets": {
+    "jatalk-1274b": {
+      "hosting": {
+        "9jai": [
+          "9jai"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

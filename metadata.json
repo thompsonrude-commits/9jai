@@ -1,0 +1,6 @@
+{
+  "name": "LinguistAI: Edo & World Heritage",
+  "description": "An AI-powered tool to preserve and learn endangered languages, featuring automated material sourcing, cultural history, and pronunciation training.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["speech_to_text", "text_to_speech"]
+}

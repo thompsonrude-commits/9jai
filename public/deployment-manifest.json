@@ -1,0 +1,53 @@
+{
+  "version": {
+    "major": 2,
+    "minor": 0,
+    "patch": 1,
+    "build": 2026052401,
+    "timestamp": 1716556800000,
+    "hash": "9JAI-PROD-20260524-STABLE"
+  },
+  "timestamp": 1716556800000,
+  "files": {
+    "/index.html": {
+      "hash": "index-html-hash",
+      "size": 2584,
+      "lastModified": 1716518400000
+    },
+    "/assets/index.css": {
+      "hash": "index-css-hash",
+      "size": 87000,
+      "lastModified": 1716518400000
+    },
+    "/assets/index.js": {
+      "hash": "index-js-hash",
+      "size": 2055000,
+      "lastModified": 1716518400000
+    },
+    "/manifest.json": {
+      "hash": "manifest-hash",
+      "size": 500,
+      "lastModified": 1716518400000
+    },
+    "/service-worker.js": {
+      "hash": "sw-hash",
+      "size": 5000,
+      "lastModified": 1716518400000
+    }
+  },
+  "critical": false,
+  "features": {
+    "advancedImageGeneration": true,
+    "nigeriaOptimization": true,
+    "voiceAI": true,
+    "logoIntro": true,
+    "mobileSyncSystem": true
+  },
+  "changes": [
+    "Enhanced visual intelligence engine for ChatGPT-grade images",
+    "Nigeria-specific network optimization",
+    "Real-time voice conversation with African voices",
+    "Mobile app automatic cache synchronization",
+    "Animated transparent logo intro"
+  ]
+}

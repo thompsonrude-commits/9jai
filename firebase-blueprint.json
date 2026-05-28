@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "VocabItem": {
+      "title": "Vocabulary Item",
+      "description": "A personal vocabulary entry added by the user.",
+      "type": "object",
+      "properties": {
+        "word": { "type": "string", "description": "English meaning" },
+        "translation": { "type": "string", "description": "Edo word" },
+        "phonetic": { "type": "string", "description": "Phonetic pronunciation hints" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["word", "translation", "userId"]
+    },
+    "Language": {
+      "title": "Language",
+      "description": "A language or regional batch discovered by the crawler.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "isRegional": { "type": "boolean" },
+        "lastSearchReport": { "type": "string" },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "discoveredBy": { "type": "string" }
+      },
+      "required": ["name", "location"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/personalVocab/{vocabId}": {
+      "schema": "VocabItem",
+      "description": "User-specific personal vocabulary"
+    },
+    "/languages/{languageId}": {
+      "schema": "Language",
+      "description": "Public repository of discovered languages"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper: user must be authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: authenticated user owns this document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper: signed-in user is the Master Admin via Google
+    function isMasterAdmin() {
+      return isSignedIn() && request.auth.token.email == 'mckpedersen@gmail.com';
+    }
+
+    // ── Personal Vocabulary ──────────────────────────────────────────────────
+    match /users/{userId}/personalVocab/{vocabId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+    // ── Languages Repository ─────────────────────────────────────────────────
+    match /languages/{languageId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // ── Developer Accounts ───────────────────────────────────────────────────
+    match /lexiconDevelopers/{devId} {
+      allow read: if true;
+      allow write: if isMasterAdmin();
+    }
+
+    // ── Core Vocabulary Audio (Lexicon Dictionary) ───────────────────────────
+    // Open write so developers (who may not have Firebase auth) can also edit
+    match /coreVocabAudio/{audioId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Community Vocabulary ─────────────────────────────────────────────────
+    match /communityVocab/{vocabId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── AI Training Studio ───────────────────────────────────────────────────
+    match /aiTraining/{entryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

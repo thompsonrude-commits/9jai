@@ -1,0 +1,78 @@
+Language ID,Language Name,Region,State,Speakers,Has Vocabulary,Vocabulary File,Priority
+pidgin,Nigerian Pidgin English (Naija),Pidgin English,All States,75 million+,YES,languageVocabularies.ts,N/A
+yoruba,Yoruba,South-West,Lagos/Ogun/Oyo/Ondo/Ekiti/Osun,40 million+,YES,languageVocabularies.ts,N/A
+igbo,Igbo,South-East,Anambra/Abia/Enugu/Imo/Ebonyi,30 million+,YES,languageVocabularies.ts,N/A
+hausa,Hausa,North-West,Kano,70 million+,YES,languageVocabularies.ts,N/A
+efik,Efik,South-South,Cross River,2 million+,YES,languageVocabularies.ts,N/A
+ibibio,Ibibio,South-South,Akwa Ibom,4 million+,YES,languageVocabularies.ts,N/A
+ijaw,Ijaw (Izon),South-South,Rivers/Bayelsa,2 million+,YES,languageVocabularies.ts,N/A
+urhobo,Urhobo,South-South,Delta,2 million+,YES,languageVocabularies.ts,N/A
+isoko,Isoko,South-South,Delta,1 million+,YES,languageVocabularies.ts,N/A
+fulfulde,Fulfulde (Fulani),North-West,Kaduna,15 million+,YES,languageVocabularies.ts,N/A
+kanuri,Kanuri,North-East,Borno/Yobe,5 million+,YES,languageVocabularies.ts,N/A
+tiv,Tiv,North-Central,Benue/Taraba,4 million+,YES,languageVocabularies.ts,N/A
+nupe,Nupe,North-Central,Niger/Kwara/Kogi,1 million+,YES,languageVocabularies.ts,N/A
+idoma,Idoma,North-Central,Benue,1 million+,YES,languageVocabularies.ts,N/A
+esan,Esan,South-South,Edo,500000+,YES,additionalLanguageVocabularies.ts,Medium
+afemai,Afemai (Etsako),South-South,Edo,500000+,YES,additionalLanguageVocabularies.ts,Medium
+igala,Igala,North-Central/South-East,Kogi/Anambra,2 million+,YES,additionalLanguageVocabularies.ts,N/A
+ebira,Ebira,North-Central,Kogi/Kwara/Nasarawa,2 million+,YES,additionalLanguageVocabularies.ts,N/A
+itsekiri,Itsekiri,South-South,Delta,1 million+,YES,additionalLanguageVocabularies.ts,N/A
+ogoni,Ogoni (Khana),South-South,Rivers,1 million+,YES,additionalLanguageVocabularies.ts,N/A
+kalabari,Kalabari,South-South,Rivers,300000+,YES,additionalLanguageVocabularies.ts,Medium
+nembe,Nembe,South-South,Bayelsa,200000+,YES,additionalLanguageVocabularies.ts,Low
+ogbia,Ogbia,South-South,Bayelsa,200000+,YES,additionalLanguageVocabularies.ts,Low
+jukun,Jukun,North-East,Taraba/Benue/Nasarawa,500000+,YES,additionalLanguageVocabularies.ts,Medium
+owan,Owan,South-South,Edo,200000+,NO,,Low
+ukwuani,Ukwuani,South-South,Delta,300000+,NO,,Low
+ejagham,Ejagham,South-South,Cross River,200000+,NO,,Low
+bekwarra,Bekwarra,South-South,Cross River,100000+,NO,,Low
+annang,Annang,South-South,Akwa Ibom,1 million+,NO,,High
+oron,Oron,South-South,Akwa Ibom,300000+,NO,,Medium
+ikwerre,Ikwerre,South-South,Rivers,500000+,NO,,Medium
+egun,Egun (Gun),South-West,Lagos,200000+,NO,,Low
+awori,Awori,South-West,Ogun/Lagos,300000+,NO,,Medium
+egba,Egba,South-West,Ogun,500000+,NO,,Medium
+oyo-yoruba,Oyo Yoruba,South-West,Oyo,3 million+,NO,,High
+ondo-yoruba,Ondo Yoruba,South-West,Ondo,1 million+,NO,,High
+ikale,Ikale,South-West,Ondo,300000+,NO,,Medium
+ekiti-yoruba,Ekiti Yoruba,South-West,Ekiti,1 million+,NO,,High
+ijesa,Ijesa,South-West,Osun,500000+,NO,,Medium
+ngwa-igbo,Ngwa Igbo,South-East,Abia,1 million+,NO,,High
+aro,Aro,South-East,Abia,200000+,NO,,Low
+enugu-igbo,Enugu Igbo,South-East,Enugu,2 million+,NO,,High
+igede,Igede,North-Central/South-East,Benue/Enugu,300000+,NO,,Low
+owerri-igbo,Owerri Igbo,South-East,Imo,2 million+,NO,,High
+oguta,Oguta,South-East,Imo,100000+,NO,,Low
+izii,Izii,South-East,Ebonyi,300000+,NO,,Medium
+ezza,Ezza,South-East,Ebonyi,400000+,NO,,Medium
+baruten,Baruten (Borgu),North-Central,Kwara,300000+,NO,,Medium
+gbagyi,Gbagyi,North-Central,Niger,1 million+,NO,,High
+hausa-niger,Hausa (Niger),North-Central,Niger,2 million+,NO,,High
+berom,Berom,North-Central,Plateau,500000+,NO,,Medium
+angas,Angas (Ngas),North-Central,Plateau,300000+,NO,,Medium
+tyap,Tyap (Katab),North-Central,Plateau,200000+,NO,,Low
+eggon,Eggon,North-Central,Nasarawa,300000+,NO,,Medium
+alago,Alago,North-Central,Nasarawa,200000+,NO,,Low
+gbagyi-kaduna,Gbagyi (Kaduna),North-West,Kaduna,500000+,NO,,Medium
+kataf,Kataf (Atyap),North-West,Kaduna,300000+,NO,,Medium
+hausa-sokoto,Hausa (Sokoto),North-West,Sokoto,5 million+,NO,,High
+kambari,Kambari,North-West,Kebbi/Niger,100000+,NO,,Low
+kebbi-hausa,Kebbi Hausa,North-West,Kebbi,2 million+,NO,,High
+dendi,Dendi,North-West,Kebbi,50000+,NO,,Low
+zamfara-hausa,Zamfara Hausa,North-West,Zamfara,3 million+,NO,,High
+katsina-hausa,Katsina Hausa,North-West,Katsina,6 million+,NO,,High
+jigawa-hausa,Jigawa Hausa,North-West,Jigawa,4 million+,NO,,High
+shuwa-arabic,Shuwa Arabic,North-East,Borno/Chad,1 million+,NO,,High
+bura,Bura,North-East,Borno/Adamawa,300000+,NO,,Medium
+marghi,Marghi,North-East,Borno,200000+,NO,,Low
+bade,Bade,North-East,Yobe,200000+,NO,,Low
+ngizim,Ngizim,North-East,Yobe,100000+,NO,,Low
+bachama,Bachama,North-East,Adamawa,500000+,NO,,Medium
+chamba,Chamba,North-East,Adamawa/Taraba,300000+,NO,,Medium
+mumuye,Mumuye,North-East,Taraba/Adamawa,400000+,NO,,Medium
+tangale,Tangale,North-East,Gombe,200000+,NO,,Low
+tera,Tera,North-East,Gombe,100000+,NO,,Low
+gerawa,Gerawa,North-East,Bauchi,100000+,NO,,Low
+warji,Warji,North-East,Bauchi,100000+,NO,,Low
+kuteb,Kuteb,North-East,Taraba,200000+,NO,,Low
