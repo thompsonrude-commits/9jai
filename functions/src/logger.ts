@@ -37,6 +37,27 @@ export function recordProviderSuccess(id: ProviderId, latencyMs: number): void {
 
 export function recordProviderFailure(id: ProviderId, error: string): void {
   const h = getProviderHealth(id);
+
+  // Detect network-level DNS / host resolution failures which are non-retryable
+  // e.g. ENOTFOUND, getaddrinfo ENOTFOUND, "No such host is known"
+  const lower = (error || '').toLowerCase();
+  const isDnsFailure = lower.includes('enotfound') || lower.includes('getaddrinfo') || lower.includes('no such host');
+
+  // If DNS/host resolution failed, mark provider immediately as 'down' and set a high consecutiveFailures
+  if (isDnsFailure) {
+    healthState.set(id, {
+      ...h,
+      status: 'down',
+      lastChecked: Date.now(),
+      avgLatencyMs: h.avgLatencyMs,
+      successRate: 0,
+      consecutiveFailures: Math.max(h.consecutiveFailures || 0, 10),
+      lastError: error,
+    });
+    console.error(`[9jai] Provider ${id} DNS/host failure: ${error} — marking as down`);
+    return;
+  }
+
   const failures = h.consecutiveFailures + 1;
   const newRate = Math.max(0, (h.successRate * 9 + 0.0) / 10);
   const status = failures >= 5 ? 'down' : failures >= 2 ? 'degraded' : 'healthy';
@@ -52,6 +73,12 @@ export function recordProviderFailure(id: ProviderId, error: string): void {
 }
 
 // ── Request logging ────────────────────────────────────────────────────────
+
+function removeUndefinedValues<T extends Record<string, unknown>>(input: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined)
+  ) as Partial<T>;
+}
 
 export async function logRequest(log: RequestLog): Promise<void> {
   // Always log to console (visible in Firebase Functions logs)
@@ -74,10 +101,21 @@ export async function logRequest(log: RequestLog): Promise<void> {
   // Write to Firestore for analytics (non-blocking, best-effort)
   try {
     const db = admin.firestore();
-    await db.collection('ai_request_logs').add({
-      ...log,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    try {
+      // Avoid Firestore errors when objects contain undefined properties
+      // (some requests may omit userId/sessionId in unauthenticated flows)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).settings?.({ ignoreUndefinedProperties: true });
+    } catch (e) {
+      // ignore
+    }
+
+    await db.collection('ai_request_logs').add(
+      removeUndefinedValues({
+        ...log,
+        createdAt: Date.now(),
+      }),
+    );
   } catch (err) {
     // Never let logging failures break the main request
     console.warn('[9jai] Failed to write log to Firestore:', err);

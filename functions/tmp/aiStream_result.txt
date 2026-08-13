@@ -1,0 +1,294 @@
+event: chunk
+data: {"text":"The sun was "}
+
+event: chunk
+data: {"text":"setting over the "}
+
+event: chunk
+data: {"text":"small fishing village, "}
+
+event: chunk
+data: {"text":"casting a warm "}
+
+event: chunk
+data: {"text":"orange glow over "}
+
+event: chunk
+data: {"text":"the thatched roofs "}
+
+event: chunk
+data: {"text":"and the bustling "}
+
+event: chunk
+data: {"text":"harbor. Jack, a "}
+
+event: chunk
+data: {"text":"grizzled fisherman with "}
+
+event: chunk
+data: {"text":"a bushy white "}
+
+event: chunk
+data: {"text":"beard and a "}
+
+event: chunk
+data: {"text":"twinkle in his "}
+
+event: chunk
+data: {"text":"eye, was preparing "}
+
+event: chunk
+data: {"text":"for another long "}
+
+event: chunk
+data: {"text":"night on the "}
+
+event: chunk
+data: {"text":"water.\n\nHe had been "}
+
+event: chunk
+data: {"text":"a fisherman all "}
+
+event: chunk
+data: {"text":"his life, just "}
+
+event: chunk
+data: {"text":"like his father "}
+
+event: chunk
+data: {"text":"and his father's "}
+
+event: chunk
+data: {"text":"father before him. "}
+
+event: chunk
+data: {"text":"There was something "}
+
+event: chunk
+data: {"text":"about the sea "}
+
+event: chunk
+data: {"text":"that called to "}
+
+event: chunk
+data: {"text":"him, something that "}
+
+event: chunk
+data: {"text":"made him feel "}
+
+event: chunk
+data: {"text":"alive. As he "}
+
+event: chunk
+data: {"text":"cast off from "}
+
+event: chunk
+data: {"text":"the dock and "}
+
+event: chunk
+data: {"text":"motored out into "}
+
+event: chunk
+data: {"text":"the open water, "}
+
+event: chunk
+data: {"text":"he felt a "}
+
+event: chunk
+data: {"text":"sense of peace "}
+
+event: chunk
+data: {"text":"wash over him.\n\nThe "}
+
+event: chunk
+data: {"text":"stars were beginning "}
+
+event: chunk
+data: {"text":"to twinkle overhead, "}
+
+event: chunk
+data: {"text":"and the sea "}
+
+event: chunk
+data: {"text":"was calm and "}
+
+event: chunk
+data: {"text":"dark. Jack baited "}
+
+event: chunk
+data: {"text":"his hook and "}
+
+event: chunk
+data: {"text":"cast his line "}
+
+event: chunk
+data: {"text":"into the water, "}
+
+event: chunk
+data: {"text":"waiting for a "}
+
+event: chunk
+data: {"text":"bite. The silence "}
+
+event: chunk
+data: {"text":"was almost palpable, "}
+
+event: chunk
+data: {"text":"broken only by "}
+
+event: chunk
+data: {"text":"the occasional cry "}
+
+event: chunk
+data: {"text":"of a gull "}
+
+event: chunk
+data: {"text":"or the creak "}
+
+event: chunk
+data: {"text":"of the boat's "}
+
+event: chunk
+data: {"text":"wooden hull.\n\nAs the "}
+
+event: chunk
+data: {"text":"night wore on, "}
+
+event: chunk
+data: {"text":"Jack felt a "}
+
+event: chunk
+data: {"text":"tug on his "}
+
+event: chunk
+data: {"text":"line. He grinned "}
+
+event: chunk
+data: {"text":"to himself, knowing "}
+
+event: chunk
+data: {"text":"that he had "}
+
+event: chunk
+data: {"text":"caught something big. "}
+
+event: chunk
+data: {"text":"He pulled and "}
+
+event: chunk
+data: {"text":"pulled, his muscles "}
+
+event: chunk
+data: {"text":"straining against the "}
+
+event: chunk
+data: {"text":"weight of the "}
+
+event: chunk
+data: {"text":"fish. Finally, after "}
+
+event: chunk
+data: {"text":"what seemed like "}
+
+event: chunk
+data: {"text":"an eternity, he "}
+
+event: chunk
+data: {"text":"landed a beautiful "}
+
+event: chunk
+data: {"text":"silver salmon, its "}
+
+event: chunk
+data: {"text":"scales glinting in "}
+
+event: chunk
+data: {"text":"the moonlight.\n\nJack whooped "}
+
+event: chunk
+data: {"text":"with excitement, feeling "}
+
+event: chunk
+data: {"text":"a sense of "}
+
+event: chunk
+data: {"text":"pride and accomplishment. "}
+
+event: chunk
+data: {"text":"He had been "}
+
+event: chunk
+data: {"text":"fishing these waters "}
+
+event: chunk
+data: {"text":"for years, but "}
+
+event: chunk
+data: {"text":"he never got "}
+
+event: chunk
+data: {"text":"tired of the "}
+
+event: chunk
+data: {"text":"thrill of the "}
+
+event: chunk
+data: {"text":"catch. As he "}
+
+event: chunk
+data: {"text":"headed back to "}
+
+event: chunk
+data: {"text":"shore, the salmon "}
+
+event: chunk
+data: {"text":"flopping in the "}
+
+event: chunk
+data: {"text":"bottom of the "}
+
+event: chunk
+data: {"text":"boat, he felt "}
+
+event: chunk
+data: {"text":"grateful for this "}
+
+event: chunk
+data: {"text":"life he had "}
+
+event: chunk
+data: {"text":"chosen. The sea "}
+
+event: chunk
+data: {"text":"was a harsh "}
+
+event: chunk
+data: {"text":"mistress, but she "}
+
+event: chunk
+data: {"text":"was also a "}
+
+event: chunk
+data: {"text":"generous one, and "}
+
+event: chunk
+data: {"text":"Jack knew that "}
+
+event: chunk
+data: {"text":"he would be "}
+
+event: chunk
+data: {"text":"back out on "}
+
+event: chunk
+data: {"text":"the water again "}
+
+event: chunk
+data: {"text":"tomorrow, chasing the "}
+
+event: chunk
+data: {"text":"next big catch."}
+
+event: done
+data: {"provider":"groq","model":"llama-3.3-70b-versatile","latencyMs":6317,"cached":false,"tokensUsed":400}
+

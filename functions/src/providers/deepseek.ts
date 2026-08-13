@@ -5,6 +5,8 @@
 
 import { defineSecret } from 'firebase-functions/params';
 import { ChatMessage } from '../types';
+import { normalizeChatMessagesForProvider } from '../providerPayload';
+import { getSecretValue } from './secretHelpers';
 
 export const DEEPSEEK_KEY = defineSecret('DEEPSEEK_KEY');
 
@@ -21,8 +23,10 @@ export async function deepseekChat(
   temperature = 0.7,
   maxTokens = 2048
 ): Promise<{ text: string; model: string; tokensUsed?: number }> {
-  const key = DEEPSEEK_KEY.value();
+  const key = getSecretValue('DEEPSEEK_KEY', DEEPSEEK_KEY);
   if (!key) throw new Error('DEEPSEEK_KEY secret not configured');
+
+  const normalizedMessages = normalizeChatMessagesForProvider(messages, 'deepseek');
 
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -32,7 +36,7 @@ export async function deepseekChat(
     },
     body: JSON.stringify({
       model,
-      messages,
+      messages: normalizedMessages,
       temperature,
       max_tokens: maxTokens,
       stream: false,

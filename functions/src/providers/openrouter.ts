@@ -6,12 +6,22 @@
 
 import { defineSecret } from 'firebase-functions/params';
 import { ChatMessage } from '../types';
+import { normalizeChatMessagesForProvider } from '../providerPayload';
+import { getSecretValue } from './secretHelpers';
 
 export const OPENROUTER_KEY = defineSecret('OPENROUTER_KEY');
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
 const SITE_URL = 'https://9jai.web.app';
 const SITE_NAME = '9jai African AI';
+
+// ── Vision-capable models (multimodal) ────────────────────────────────────
+export const OPENROUTER_VISION_MODELS = [
+  'meta-llama/llama-3.2-11b-vision-instruct:free',
+  'google/gemini-2.0-flash-exp:free',
+  'qwen/qwen2-vl-7b-instruct:free',
+  'meta-llama/llama-3.2-90b-vision-instruct:free',
+];
 
 // Model priority list — best free/cheap models first
 export const OPENROUTER_MODELS = [
@@ -24,6 +34,105 @@ export const OPENROUTER_MODELS = [
   'deepseek/deepseek-r1:free',
 ];
 
+// ── Vision chat — sends image + text to multimodal model ─────────────────
+
+export async function openRouterVisionChat(
+  imageBase64: string,
+  prompt: string,
+  temperature = 0.7
+): Promise<{ text: string; model: string }> {
+  const key = getSecretValue('OPENROUTER_KEY', OPENROUTER_KEY);
+  if (!key) throw new Error('OPENROUTER_KEY secret not configured');
+
+  // Strip the data URL prefix to get pure base64
+  const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+  const mimeType   = imageBase64.startsWith('data:') ? imageBase64.split(';')[0].split(':')[1] : 'image/jpeg';
+
+  const messages = [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mimeType};base64,${base64Data}`,
+            detail: 'high',
+          },
+        },
+        {
+          type: 'text',
+          text: prompt,
+        },
+      ],
+    },
+  ];
+
+  let lastError: Error | null = null;
+  for (const model of OPENROUTER_VISION_MODELS) {
+    try {
+      const res = await fetch(`${BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+          'HTTP-Referer': SITE_URL,
+          'X-Title': SITE_NAME,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: 2048,
+          stream: false,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`OpenRouter vision ${res.status}: ${err.slice(0, 200)}`);
+      }
+
+      const data = await res.json() as any;
+      const text = data.choices?.[0]?.message?.content ?? '';
+      if (text) return { text, model };
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[OpenRouter Vision] Model ${model} failed: ${err.message}`);
+      if (err.message.includes('401') || err.message.includes('403')) throw err;
+      continue;
+    }
+  }
+
+  throw lastError ?? new Error('All vision models exhausted');
+}
+
+// ── Image-to-image editing via Pollinations edit endpoint ─────────────────
+
+export async function openRouterImageEdit(
+  imageBase64: string,
+  editPrompt: string
+): Promise<{ imageUrl: string; model: string }> {
+  const key = getSecretValue('OPENROUTER_KEY', OPENROUTER_KEY);
+  if (!key) throw new Error('OPENROUTER_KEY secret not configured');
+
+  // Use vision model to understand image + generate edited description,
+  // then generate a new image based on the description + edit instruction
+  const visionPrompt = `Look at this image carefully. Then generate a detailed description of it, applying these changes: ${editPrompt}. Be very specific about: colors, clothing, hair, background, lighting, style, and all visual details. Output ONLY the image description for a text-to-image model.`;
+
+  // Step 1: Use vision to understand current image and plan the edit
+  let editDescription = editPrompt;
+  try {
+    const visionResult = await openRouterVisionChat(imageBase64, visionPrompt, 0.5);
+    editDescription = visionResult.text;
+  } catch {
+    editDescription = `${editPrompt}, photorealistic, high quality, 8k`;
+  }
+
+  // Step 2: Generate new image based on description
+  const imageResult = await openRouterImage(editDescription);
+  return { imageUrl: imageResult.imageUrl, model: imageResult.model };
+}
+
 // ── Non-streaming chat ─────────────────────────────────────────────────────
 
 export async function openRouterChat(
@@ -32,8 +141,10 @@ export async function openRouterChat(
   temperature = 0.7,
   maxTokens = 2048
 ): Promise<{ text: string; model: string; tokensUsed?: number }> {
-  const key = OPENROUTER_KEY.value();
+  const key = getSecretValue('OPENROUTER_KEY', OPENROUTER_KEY);
   if (!key) throw new Error('OPENROUTER_KEY secret not configured');
+
+  const normalizedMessages = normalizeChatMessagesForProvider(messages, 'openrouter');
 
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -45,7 +156,7 @@ export async function openRouterChat(
     },
     body: JSON.stringify({
       model,
-      messages,
+      messages: normalizedMessages,
       temperature,
       max_tokens: maxTokens,
       stream: false,
@@ -73,7 +184,7 @@ export async function openRouterStream(
   temperature = 0.7,
   maxTokens = 2048
 ): Promise<ReadableStream<Uint8Array>> {
-  const key = OPENROUTER_KEY.value();
+  const key = getSecretValue('OPENROUTER_KEY', OPENROUTER_KEY);
   if (!key) throw new Error('OPENROUTER_KEY secret not configured');
 
   const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -136,7 +247,7 @@ export async function openRouterChatWithFallback(
 export async function openRouterImage(
   prompt: string
 ): Promise<{ imageUrl: string; model: string }> {
-  const key = OPENROUTER_KEY.value();
+  const key = getSecretValue('OPENROUTER_KEY', OPENROUTER_KEY);
   if (!key) throw new Error('OPENROUTER_KEY secret not configured');
 
   const res = await fetch(`${BASE_URL}/images/generations`, {

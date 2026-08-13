@@ -34,7 +34,7 @@ export default function VoiceConversation({ onVoiceInput, onSettingsOpen }: Voic
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const volumeIntervalRef = useRef<number>();
+  const volumeIntervalRef = useRef<number | null>(null);
 
   // Initialize speech recognition
   useEffect(() => {

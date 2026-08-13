@@ -1,0 +1,13 @@
+# backend/
+# Server-side application code (Express / Fastify / Next.js API routes).
+# This directory consumes core/ via AIService.
+#
+# Suggested structure:
+#   backend/
+#   ├── routes/       — HTTP route handlers
+#   ├── middleware/   — Auth, rate-limiting, CORS
+#   ├── db/           — Database models and migrations
+#   └── index.ts      — Server entry point
+#
+# TODO Phase 3: Scaffold Express/Fastify server with /api/v1 prefix
+# TODO Phase 3: Add Firebase Auth middleware for user sessions

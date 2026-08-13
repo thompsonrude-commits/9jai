@@ -1,61 +1,119 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
-    }
 
-    // Helper: user must be authenticated
+    // ── Helpers ────────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
     }
-
-    // Helper: authenticated user owns this document
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    // Helper: signed-in user is the Master Admin via Google
     function isMasterAdmin() {
       return isSignedIn() && request.auth.token.email == 'mckpedersen@gmail.com';
     }
 
-    // ── Personal Vocabulary ──────────────────────────────────────────────────
-    match /users/{userId}/personalVocab/{vocabId} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
+    // ── Default deny ───────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // ── Languages Repository ─────────────────────────────────────────────────
+    // ── User Memory (long-term AI memory per user) ─────────────────────────
+    match /user_memory/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── Chat History (conversations saved to Firestore) ────────────────────
+    match /chat_sessions/{sessionId} {
+      allow read, write: if isSignedIn() &&
+        request.auth.uid == resource.data.userId;
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.userId;
+    }
+
+    // ── AI Feedback (ratings on AI responses) ─────────────────────────────
+    match /ai_feedback/{feedbackId} {
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.userId;
+      allow read: if isSignedIn() &&
+        request.auth.uid == resource.data.userId;
+    }
+
+    // ── AI Corrections (user-submitted corrections for AI learning) ────────
+    match /ai_corrections/{correctionId} {
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.userId;
+      allow read: if isSignedIn() &&
+        request.auth.uid == resource.data.userId;
+      // Admin can read all and approve/reject
+      allow read, write: if isMasterAdmin();
+    }
+
+    // ── Personal Vocabulary (language learning per user) ──────────────────
+    match /users/{userId}/personalVocab/{vocabId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── Languages Repository ───────────────────────────────────────────────
     match /languages/{languageId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
-    // ── Developer Accounts ───────────────────────────────────────────────────
+    // ── Developer Accounts ─────────────────────────────────────────────────
     match /lexiconDevelopers/{devId} {
       allow read: if true;
       allow write: if isMasterAdmin();
     }
 
-    // ── Core Vocabulary Audio (Lexicon Dictionary) ───────────────────────────
-    // Open write so developers (who may not have Firebase auth) can also edit
+    // ── Core Vocabulary Audio ──────────────────────────────────────────────
     match /coreVocabAudio/{audioId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isSignedIn();
     }
 
-    // ── Community Vocabulary ─────────────────────────────────────────────────
+    // ── Community Vocabulary ───────────────────────────────────────────────
     match /communityVocab/{vocabId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isSignedIn();
     }
 
-    // ── AI Training Studio ───────────────────────────────────────────────────
+    // ── AI Training Studio ─────────────────────────────────────────────────
     match /aiTraining/{entryId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isSignedIn();
+    }
+
+    // ── Request Logs (Cloud Functions write via admin SDK — no client access) ──
+    match /ai_request_logs/{logId} {
+      allow read: if isMasterAdmin();
+      allow write: if false; // server only
+    }
+
+    // ── Orchestrator History (server-only) ─────────────────────────────────
+    match /orchestrator_history/{recordId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ── Global Knowledge (public knowledge base) ───────────────────────────
+    match /global_knowledge/{entryId} {
+      allow read: if true; // public read
+      allow write: if isSignedIn(); // any signed-in user can contribute
+    }
+
+    // ── User Knowledge (personal knowledge entries) ────────────────────────
+    match /user_knowledge/{entryId} {
+      allow read, write: if isSignedIn() &&
+        request.auth.uid == resource.data.userId;
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.userId;
+    }
+
+    // ── Analytics Events (server writes, admin reads) ──────────────────────
+    match /analytics_events/{eventId} {
+      allow create: if isSignedIn(); // users can log their own events
+      allow read: if isMasterAdmin(); // only admin can read analytics
     }
   }
 }

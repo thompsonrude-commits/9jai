@@ -10,8 +10,8 @@ interface AdminLoginProps {
 
 // Get admin credentials from environment variables (development only)
 const ADMIN_CREDENTIALS = {
-  email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@9jai.app',
-  password: import.meta.env.VITE_ADMIN_PASSWORD || 'secure_password_required'
+  email: (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.VITE_ADMIN_EMAIL || 'admin@9jai.app',
+  password: (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.VITE_ADMIN_PASSWORD || 'secure_password_required'
 };
 
 export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {

@@ -184,18 +184,18 @@ export const NEGATIVE_PROMPTS: Record<VisualMode, string> = {
 // ── Model selection ────────────────────────────────────────────────────────
 
 export const MODE_MODELS: Record<VisualMode, string[]> = {
-  photorealistic: ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
-  cinematic:      ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
+  photorealistic: ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
+  cinematic:      ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
   logo:           ['turbo', 'stable-diffusion-3.5-large'],
   branding:       ['turbo', 'stable-diffusion-3.5-large'],
   anime:          ['flux-anime', 'turbo'],
   cyberpunk:      ['flux', 'turbo', 'stable-diffusion-3.5-large'],
-  african_art:    ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
-  architecture:   ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
-  portrait:       ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
-  wildlife:       ['stable-diffusion-xl', 'flux', 'stable-diffusion-3.5-large'],
+  african_art:    ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
+  architecture:   ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
+  portrait:       ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
+  wildlife:       ['flux', 'stable-diffusion-xl', 'stable-diffusion-3.5-large'],
   abstract:       ['flux-3d', 'stable-diffusion-3.5-large'],
-  poster:         ['stable-diffusion-3.5-large', 'flux'],
+  poster:         ['flux', 'stable-diffusion-3.5-large'],
   icon:           ['turbo', 'stable-diffusion-3.5-large'],
 };
 

@@ -11,7 +11,7 @@ const PSEUDO_KEYWORDS: Record<string, string[]> = {
 
 export async function detectLanguage(text: string): Promise<{ code: string; name: string; reliable: boolean; confidence: number }> {
   const trimmed = (text || '').trim();
-  if (!trimmed) return { code: 'en', name: 'English', reliable: false };
+  if (!trimmed) return { code: 'en', name: 'English', reliable: false, confidence: 0.2 };
 
   const lc = trimmed.toLowerCase();
     const lcNorm = lc.normalize && lc.normalize('NFD').replace(/[\u0300-\u036f]/g, '') || lc;

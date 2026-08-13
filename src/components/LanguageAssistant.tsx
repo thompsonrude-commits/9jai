@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { User as FirebaseUser } from 'firebase/auth';
-import { groqChatStream, transcribeWithWhisper, ChatAttachment } from '../lib/ai';
+import { unifiedChatStream, transcribeWithWhisper, ChatAttachment } from '../lib/ai';
 import { ChatMessage } from '../types';
 import { recordAudioBlob, customAudioCache } from '../lib/voice';
 import { getLanguageVocabulary } from '../lib/languageVocabularies';
@@ -36,8 +36,8 @@ interface LanguageAssistantProps {
 // ── Build a language-specific system prompt ───────────────────────────────
 function buildSystemPrompt(languageName: string, nativeName: string, vocab: ReturnType<typeof getLanguageVocabulary>): string {
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const timeStr = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateStr = now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' });
+  const timeStr = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
   const month = now.getMonth();
   const season = (month >= 3 && month <= 9) ? 'Rainy season' : 'Dry/Harmattan season';
 
@@ -532,7 +532,7 @@ export default function LanguageAssistant({ user, isAdmin, languageName, languag
     try {
       setIsLoading(false); setIsStreaming(true); setStreamingContent('');
       let fullText = '';
-      for await (const chunk of groqChatStream(historyRef.current, 0.7)) {
+      for await (const chunk of unifiedChatStream(historyRef.current, 0.7)) {
         if (abortRef.current) break;
         fullText += chunk;
         setStreamingContent(fullText);

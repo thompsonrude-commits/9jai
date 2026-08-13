@@ -18,6 +18,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "downlevelIteration": true,
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": [
         "./*"
@@ -25,5 +26,21 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src",
+    "functions/src",
+    "core/**/*.ts",
+    "core/**/*.tsx",
+    "9ja-ai/9ja-ai-core/**/*.ts",
+    "9ja-ai/9ja-ai-core/**/*.tsx"
+  ],
+  "exclude": [
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/__tests__/**"
+  ]
 }

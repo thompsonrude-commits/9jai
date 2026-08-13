@@ -1,0 +1,10 @@
+# models/
+# Trained model artefacts, checkpoints, and quantised weights.
+# Large binary files should be stored in cloud storage (GCS / S3) and referenced here.
+#
+# Naming convention:
+#   {task}_{language}_{base_model}_{date}/
+#   e.g. translate_edo_en_nllb200_2025-01/
+#
+# TODO: Add model card template (model_card_template.md)
+# TODO: Document storage bucket location once provisioned

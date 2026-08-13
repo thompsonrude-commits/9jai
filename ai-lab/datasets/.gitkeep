@@ -1,0 +1,10 @@
+# datasets/
+# Place raw and preprocessed language datasets here.
+#
+# Naming convention:
+#   {language_code}_{domain}_{version}.{ext}
+#   e.g. edo_general_v1.jsonl  |  yor_proverbs_v1.csv
+#
+# TODO: Add Edo language corpus (target 100k+ tokens)
+# TODO: Add Yoruba, Igbo, Hausa parallel translation corpora
+# TODO: Add Nigerian Pidgin text samples

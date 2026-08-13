@@ -200,16 +200,20 @@ export function buildLearningContext(userId: string): string {
   const corrections = loadLocalCorrections(userId);
   if (corrections.length === 0) return '';
 
-  // Only use high-confidence validated corrections
-  const validated = corrections
+  const trusted = corrections
     .filter(c => c.confidence >= 0.6 && c.status !== 'rejected')
-    .slice(0, 10);
+    .slice(0, 8);
 
-  if (validated.length === 0) return '';
+  if (trusted.length === 0) return '';
 
-  const lines = validated.map(c =>
-    `- Previously corrected: "${c.originalResponse.slice(0, 80)}..." → User said: "${c.correctedText.slice(0, 80)}..."`
-  ).join('\n');
+  const lines = trusted.map((c) => {
+    const topic = c.topic || 'general';
+    const language = c.language || 'en';
+    const status = c.status === 'validated' ? 'validated' : 'pending-review';
+    const original = c.originalResponse?.slice(0, 80) || 'unknown response';
+    const corrected = c.correctedResponse?.slice(0, 80) || 'unknown correction';
+    return `- [${status}] ${topic} (${language}): "${original}" → "${corrected}"`;
+  }).join('\n');
 
   return `\n\n## LEARNED CORRECTIONS (apply these improvements):\n${lines}`;
 }
@@ -326,17 +330,18 @@ export async function checkConsensus(
     );
     const snap = await getDocs(q);
 
-    // Count similar corrections
     let similarCount = 0;
     snap.forEach(doc => {
       const data = doc.data() as LearnedCorrection;
-      if (data.correctedText && correctedText &&
-          data.correctedText.toLowerCase().includes(correctedText.toLowerCase().slice(0, 20))) {
+      const existingCorrection = data.correctedResponse?.toLowerCase() || '';
+      const submittedCorrection = correctedText.toLowerCase();
+
+      if (existingCorrection && submittedCorrection &&
+          existingCorrection.includes(submittedCorrection.slice(0, 20))) {
         similarCount++;
       }
     });
 
-    // More users = higher confidence
     if (similarCount >= 5) return 0.95;
     if (similarCount >= 3) return 0.85;
     if (similarCount >= 2) return 0.75;

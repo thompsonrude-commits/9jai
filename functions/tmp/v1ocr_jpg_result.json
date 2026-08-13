@@ -1,0 +1,18 @@
+﻿{
+    "body":  {
+                 "status":  "success",
+                 "data":  {
+                              "text":  "Extracted text from https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Hello_World_-_typographic_poster.jpg/800px-Hello_World_-_typographic_poster.jpg (language=en)",
+                              "layout":  {
+                                             "pages":  [
+                                                           {
+                                                               "pageNumber":  1,
+                                                               "blocks":  ""
+                                                           }
+                                                       ]
+                                         }
+                          }
+             },
+    "status":  200,
+    "timeMs":  6023
+}

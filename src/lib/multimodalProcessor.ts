@@ -3,7 +3,7 @@
  * Extracts content and prepares it for AI analysis
  */
 
-import { groqChatStream } from './ai';
+import { unifiedChatStream } from './ai';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

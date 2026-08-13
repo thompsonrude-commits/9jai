@@ -405,9 +405,8 @@ function extractNextChunk(flush: boolean): string | null {
 
 // ── TTS endpoints ──────────────────────────────────────────────────────────
 
-const TTS_ENDPOINT = (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV)
-  ? 'http://127.0.0.1:5001/jatalk-1274b/us-central1/aiTTS'
-  : 'https://us-central1-jatalk-1274b.cloudfunctions.net/aiTTS';
+// Use local proxy path so dev requests go through Vite and the emulator without CORS issues
+const TTS_ENDPOINT = '/api/v1/speech/synthesize';
 
 const EDGE_PROXIES = [
   'https://edge-tts-proxy.vercel.app/api/tts',

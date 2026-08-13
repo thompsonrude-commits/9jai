@@ -107,18 +107,36 @@ export default function VoiceAssistantDropdown({
     setInterimText('');
 
     const recognition = new SpeechRecognition();
+    // Use English (Nigeria) as primary — best for Pidgin + Nigerian accents
+    // Falls back to en-US if en-NG not supported
     recognition.lang = 'en-NG';
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3; // get multiple guesses for better Pidgin matching
+
+    // Nigerian language code hints — helps the recognizer understand local words
+    // Most browsers use the primary lang but this improves accuracy
+    try {
+      (recognition as any).serviceURI = undefined; // use default service
+    } catch { /* ignore */ }
 
     recognition.onresult = (event: any) => {
       let interim = '';
       let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) final += t;
-        else interim += t;
+        // Try all alternatives — pick the one that looks most like Pidgin/Nigerian
+        if (event.results[i].isFinal) {
+          // Check all alternatives, prefer Nigerian/Pidgin-sounding text
+          const alternatives: string[] = [];
+          for (let j = 0; j < event.results[i].length; j++) {
+            alternatives.push(event.results[i][j].transcript);
+          }
+          // Pick best match — prefer alternative with Nigerian words
+          const nigerianWords = /\b(wetin|abeg|dey|oya|sabi|wahala|naija|pidgin|abi|nau|dem|una|waka|chop|pikin)\b/i;
+          final = alternatives.find(a => nigerianWords.test(a)) || alternatives[0] || '';
+        } else {
+          interim += event.results[i][0].transcript;
+        }
       }
       if (final.trim()) {
         setInterimText('');
@@ -135,10 +153,24 @@ export default function VoiceAssistantDropdown({
       setInterimText('');
       recognitionRef.current = null;
       if (event.error === 'not-allowed') {
-        alert('Microphone permission denied. Please allow microphone access.');
+        alert('Microphone permission denied. Please allow microphone access in your browser settings.');
       } else if (event.error === 'language-not-supported') {
-        recognition.lang = 'en-US';
-        try { recognition.start(); return; } catch { /* ignore */ }
+        // Retry with en-US — wider support, still works for Nigerian accent
+        const retryRecognition = new SpeechRecognition();
+        retryRecognition.lang = 'en-US';
+        retryRecognition.continuous = false;
+        retryRecognition.interimResults = true;
+        retryRecognition.maxAlternatives = 1;
+        retryRecognition.onresult = recognition.onresult;
+        retryRecognition.onerror = () => { setIsListening(false); setInterimText(''); };
+        retryRecognition.onend = () => { setIsListening(false); setInterimText(''); recognitionRef.current = null; };
+        recognitionRef.current = retryRecognition;
+        setIsListening(true);
+        try { retryRecognition.start(); } catch { setIsListening(false); }
+      } else if (event.error === 'no-speech') {
+        setIsListening(false);
+        setInterimText('No speech detected. Try again.');
+        setTimeout(() => setInterimText(''), 2000);
       }
     };
 
@@ -165,7 +197,7 @@ export default function VoiceAssistantDropdown({
     } else {
       // Greet user — use phonetic spelling so TTS pronounces name correctly
       const phonetic = AGENT_PHONETIC[currentAgent.id] || currentAgent.name;
-      const greeting = `How far! I be ${phonetic}. Weytin I fit do for you today?`;
+      const greeting = `My Oga, I be ${phonetic}. Na my pleasure to meet you. Wetin you want make I do for you today?`;
       speakNigerian(greeting, currentAgent.id);
     }
   }, [isSpeakerOn, onSpeakerToggle, currentAgent]);

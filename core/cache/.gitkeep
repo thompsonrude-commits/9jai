@@ -1,0 +1,2 @@
+# Cache directory — stores response cache and embedding cache implementations.
+# TODO Phase 5: Add ResponseCache.ts and EmbeddingCache.ts here.

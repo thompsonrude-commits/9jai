@@ -11,8 +11,11 @@ export type ProviderId =
   | 'huggingface'
   | 'deepseek'
   | 'mistral'
+  | 'tavily'
   | 'ollama'
-  | 'pollinations';
+  | 'pollinations'
+  | 'pollinations-fallback'
+  | 'video-worker';
 
 export type TaskType =
   | 'chat'
@@ -20,7 +23,8 @@ export type TaskType =
   | 'embed'
   | 'image'
   | 'transcribe'
-  | 'search';
+  | 'search'
+  | 'video';
 
 // ── Request / Response shapes ──────────────────────────────────────────────
 
@@ -40,6 +44,8 @@ export interface AIRequest {
   preferredProviders?: ProviderId[];
   sessionId?: string;
   userId?: string;
+  // Developer debugging flag (emulator/dev only)
+  debug?: boolean;
 }
 
 export interface AIResponse {
@@ -50,6 +56,8 @@ export interface AIResponse {
   cached: boolean;
   tokensUsed?: number;
   error?: string;
+  // Optional debug object provided in dev/emulator mode
+  debug?: any;
 }
 
 // ── Provider health ────────────────────────────────────────────────────────

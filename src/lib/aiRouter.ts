@@ -46,8 +46,9 @@ async function callProviderHttp(providerName: string, options: ModelCallOptions)
   try {
     // Provider url and key env var names: VITE_PROVIDER_<NAME>_URL, VITE_PROVIDER_<NAME>_KEY
     const upper = providerName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const url = (import.meta.env as any)[`VITE_PROVIDER_${upper}_URL`];
-    const key = (import.meta.env as any)[`VITE_PROVIDER_${upper}_KEY`];
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env ?? {};
+    const url = env[`VITE_PROVIDER_${upper}_URL`];
+    const key = env[`VITE_PROVIDER_${upper}_KEY`];
 
     if (!url) return { ok: false, error: `Provider ${providerName} not configured (no URL)` };
 

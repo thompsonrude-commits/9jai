@@ -1,0 +1,18 @@
+﻿{
+    "body":  {
+                 "status":  "success",
+                 "data":  {
+                              "text":  "Extracted text from https://upload.wikimedia.org/wikipedia/commons/6/6b/Hello_world_program_in_C.png (language=en)",
+                              "layout":  {
+                                             "pages":  [
+                                                           {
+                                                               "pageNumber":  1,
+                                                               "blocks":  ""
+                                                           }
+                                                       ]
+                                         }
+                          }
+             },
+    "status":  200,
+    "timeMs":  7187
+}

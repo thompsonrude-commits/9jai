@@ -181,7 +181,7 @@ export async function getNewsFromFirestore(
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as Record<string, unknown>),
     } as NewsItem));
   } catch (error) {
     console.error('Error getting news from Firestore:', error);

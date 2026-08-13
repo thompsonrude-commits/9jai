@@ -599,6 +599,20 @@ export const v1Ocr = onRequest(
       return;
     }
 
+    const parsedImage = parseAndNormalizeImagePayload(imageUrl as string);
+    const MAX_INLINE_IMAGE_BYTES = Number(process.env.MAX_INLINE_IMAGE_BYTES || 1572864);
+    if (parsedImage.byteLength > MAX_INLINE_IMAGE_BYTES) {
+      res.status(413).json({
+        status: 'error',
+        error: 'IMAGE_TOO_LARGE',
+        message: 'Image is too large for OCR.',
+        suggestion: 'Resize or compress the image and try again.',
+        size: parsedImage.byteLength,
+        maxInlineBytes: MAX_INLINE_IMAGE_BYTES,
+      });
+      return;
+    }
+
     try {
       // Try Tesseract first (FREE, no API key)
       if (layout) {
@@ -1273,10 +1287,11 @@ export const aiVision = onRequest(
     if (parsedImage.byteLength > MAX_INLINE_IMAGE_BYTES) {
       console.warn('[aiVision] Rejected inline image: size exceeds MAX_INLINE_IMAGE_BYTES', { size: parsedImage.byteLength, max: MAX_INLINE_IMAGE_BYTES });
       res.status(413).json({
-        error: 'Image too large for inline upload',
+        error: 'IMAGE_TOO_LARGE',
+        message: 'Image is too large for direct Vision analysis.',
+        suggestion: 'Resize or compress the image and try again.',
         size: parsedImage.byteLength,
         maxInlineBytes: MAX_INLINE_IMAGE_BYTES,
-        suggestion: 'Please resize/compress the image on the client or enable a hosted upload fallback (configure ENABLE_HOSTED_IMAGE_FALLBACK=true to allow optional hosting).'
       });
       return;
     }

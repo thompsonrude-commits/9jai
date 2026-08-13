@@ -1,0 +1,2 @@
+# API directory — HTTP/REST/WebSocket route handlers that consume AIService.
+# TODO Phase 3: Add router files (chat.ts, translate.ts, speech.ts, etc.) here.

@@ -31,7 +31,7 @@ export interface DeploymentMetadata {
 
 export interface CacheSyncState {
   currentVersion: AppVersion;
-  deployedVersion: AppVersion;
+  deployedVersion: DeploymentMetadata;
   isStaleBuild: boolean;
   needsUpdate: boolean;
   criticalUpdateAvailable: boolean;
@@ -106,8 +106,9 @@ export function isStale(current: AppVersion, deployed: AppVersion): boolean {
 export async function detectStaleBuild(): Promise<CacheSyncState> {
   const deployed = await getDeploymentMetadata();
   const current = CURRENT_APP_VERSION;
+  const deployedVersion = deployed.version;
   
-  const isStaleBuild = isStale(current, deployed);
+  const isStaleBuild = isStale(current, deployedVersion);
   const criticalUpdateAvailable = deployed.critical && isStaleBuild;
   
   return {
@@ -226,7 +227,7 @@ export async function synchronizeAppAfterDeployment(): Promise<CacheSyncState> {
   // 4. Clear localStorage if migration needed
   if (state.deployedVersion.migration) {
     try {
-      const key = `app-migration-${state.deployedVersion.hash}`;
+      const key = `app-migration-${state.deployedVersion.version.hash}`;
       if (!localStorage.getItem(key)) {
         console.log('[Sync] Running migration:', state.deployedVersion.migration);
         // Execute migration (defined in migration metadata)
@@ -243,7 +244,7 @@ export async function synchronizeAppAfterDeployment(): Promise<CacheSyncState> {
     if (!isAppBusy()) {
       console.log('[Sync] Executing safe critical refresh...');
       const url = new URL(window.location.href);
-      url.searchParams.set('build', state.deployedVersion.hash);
+      url.searchParams.set('build', state.deployedVersion.version.hash);
       window.location.href = url.toString();
     } else {
       console.warn('[Sync] Critical update deferred: App is busy.');
@@ -349,7 +350,7 @@ export interface UpdateNotification {
   title: string;
   message: string;
   isCritical: boolean;
-  action: () => Promise<void>;
+  action: () => void;
 }
 
 export function createUpdateNotification(state: CacheSyncState): UpdateNotification {
@@ -359,7 +360,7 @@ export function createUpdateNotification(state: CacheSyncState): UpdateNotificat
       ? 'A critical update is required for security and stability.'
       : 'A new version of the app is available. Update now for the best experience.',
     isCritical: state.criticalUpdateAvailable,
-    action: () => synchronizeAppAfterDeployment()
+    action: () => { void synchronizeAppAfterDeployment(); }
   };
 }
 

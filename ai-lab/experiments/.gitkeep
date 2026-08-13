@@ -1,0 +1,6 @@
+# experiments/
+# Sandbox for one-off experiments, notebooks, and quick tests.
+# Keep notebooks documented with a header: date, hypothesis, results.
+#
+# TODO: Add Jupyter notebook for initial Edo tokeniser analysis
+# TODO: Add prompt engineering experiments for Yoruba proverb generation

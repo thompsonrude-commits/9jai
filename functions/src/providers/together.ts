@@ -5,6 +5,8 @@
 
 import { defineSecret } from 'firebase-functions/params';
 import { ChatMessage } from '../types';
+import { normalizeChatMessagesForProvider } from '../providerPayload';
+import { getSecretValue } from './secretHelpers';
 
 export const TOGETHER_KEY = defineSecret('TOGETHER_KEY');
 
@@ -30,8 +32,10 @@ export async function togetherChat(
   temperature = 0.7,
   maxTokens = 2048
 ): Promise<{ text: string; model: string; tokensUsed?: number }> {
-  const key = TOGETHER_KEY.value();
+  const key = getSecretValue('TOGETHER_KEY', TOGETHER_KEY);
   if (!key) throw new Error('TOGETHER_KEY secret not configured');
+
+  const normalizedMessages = normalizeChatMessagesForProvider(messages, 'together');
 
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -41,7 +45,7 @@ export async function togetherChat(
     },
     body: JSON.stringify({
       model,
-      messages,
+      messages: normalizedMessages,
       temperature,
       max_tokens: maxTokens,
     }),
@@ -65,7 +69,7 @@ export async function togetherImage(
   prompt: string,
   model = TOGETHER_IMAGE_MODELS[0]
 ): Promise<{ imageUrl: string; model: string }> {
-  const key = TOGETHER_KEY.value();
+  const key = getSecretValue('TOGETHER_KEY', TOGETHER_KEY);
   if (!key) throw new Error('TOGETHER_KEY secret not configured');
 
   const res = await fetch(`${BASE_URL}/images/generations`, {

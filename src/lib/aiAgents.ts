@@ -3,7 +3,7 @@
  * Each agent can plan, execute, and synthesize results across multiple steps
  */
 
-import { groqChatStream } from './ai';
+import { unifiedChatStream } from './ai';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -193,7 +193,7 @@ No other text. Just the JSON array.`;
 
   let planText = '';
   try {
-    for await (const chunk of groqChatStream([
+    for await (const chunk of unifiedChatStream([
       { role: 'system', content: AGENT_PROMPTS[type] },
       { role: 'user', content: planningPrompt },
     ], 0.3)) {
@@ -244,7 +244,7 @@ ${context}
 
 Execute this specific step thoroughly. Be detailed and accurate.`;
 
-  for await (const chunk of groqChatStream([
+  for await (const chunk of unifiedChatStream([
     { role: 'system', content: AGENT_PROMPTS[type] },
     { role: 'user', content: stepPrompt },
   ], 0.7)) {
@@ -273,7 +273,7 @@ ${stepsContext}
 Now synthesize all of this into a comprehensive, well-organized final response.
 Make it clear, actionable, and complete. Format it beautifully with headers and structure.`;
 
-  for await (const chunk of groqChatStream([
+  for await (const chunk of unifiedChatStream([
     { role: 'system', content: AGENT_PROMPTS[type] },
     { role: 'user', content: synthesisPrompt },
   ], 0.7)) {

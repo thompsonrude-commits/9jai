@@ -22,6 +22,56 @@
 
 ---
 
+## Production Secrets Setup
+
+The Firebase backend requires the following secrets in Firebase Secret Manager:
+
+- `OPENROUTER_KEY`
+- `GROQ_KEY`
+- `TOGETHER_KEY`
+- `HF_KEY`
+- `DEEPSEEK_KEY`
+- `MISTRAL_KEY`
+- `TAVILY_KEY`
+- `GOOGLE_TTS_KEY`
+
+Example CLI commands:
+
+```bash
+firebase functions:secrets:set OPENROUTER_KEY
+firebase functions:secrets:set GROQ_KEY
+firebase functions:secrets:set TOGETHER_KEY
+firebase functions:secrets:set HF_KEY
+firebase functions:secrets:set DEEPSEEK_KEY
+firebase functions:secrets:set MISTRAL_KEY
+firebase functions:secrets:set TAVILY_KEY
+firebase functions:secrets:set GOOGLE_TTS_KEY
+```
+
+Verify a secret exists:
+
+```bash
+firebase functions:secrets:access OPENROUTER_KEY
+```
+
+Local emulator configuration should use environment variables or a local `.env.local` file. Do not commit `.env.local`.
+
+CI environments must also supply:
+
+- `GOOGLE_CLOUD_PROJECT`
+- `GOOGLE_APPLICATION_CREDENTIALS`
+
+After deploying, verify the backend with:
+
+```bash
+curl https://<your-functions-url>/ai/ready
+curl https://<your-functions-url>/ai/health
+```
+
+If the readiness check returns `not_ready`, inspect `missingSecrets`, `authFailedProviders`, and `unavailableProviders` in the response.
+
+---
+
 ## 📋 CURRENT FEATURES
 
 ### User-Facing Features

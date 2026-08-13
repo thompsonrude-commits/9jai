@@ -4,12 +4,42 @@
  * API keys are NEVER exposed to the client bundle.
  *
  * Flow:
- *   groqChatStream() → proxyChat() → /api/ai/chat → Cloud Function → OpenRouter/Groq/etc
+ *   groqChatStream() → proxyChat() → /api/v1/chat → Cloud Function → OpenRouter/Groq/etc
  *
  * Direct fallback only used in local dev when emulator is not running.
  */
 
 import { proxyChat as _proxyChat } from './aiProxy';
+import { getLocalFallbackResponse } from './fallbackResponses';
+import { providerRegistry } from './platform/providerRegistry';
+import { recoveryService, QueuedRequest } from './platform/recoveryService';
+import { knowledgeEngine } from './platform/knowledgeEngine';
+import { trackChatRequest } from './platform/analytics';
+
+interface ChatMessageLike {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+const MAX_CONTEXT_CHARS = 12000;
+const MAX_HISTORY_MESSAGES = 16;
+
+function buildBoundedContext(messages: ChatMessageLike[]): ChatMessageLike[] {
+  const system = messages.find(message => message.role === 'system');
+  const nonSystem = messages.filter(message => message.role !== 'system');
+  const selected: ChatMessageLike[] = [];
+  let chars = system?.content.length ?? 0;
+
+  for (let index = nonSystem.length - 1; index >= 0 && selected.length < MAX_HISTORY_MESSAGES; index--) {
+    const message = nonSystem[index];
+    const content = message.content.slice(0, 4000);
+    if (selected.length > 0 && chars + content.length > MAX_CONTEXT_CHARS) break;
+    selected.unshift({ role: message.role, content });
+    chars += content.length;
+  }
+
+  return system ? [{ ...system, content: system.content.slice(0, 5000) }, ...selected] : selected;
+}
 
 // ── Keep Groq URL for direct fallback (dev only) ───────────────────────────
 const GROQ_API_URL = 'https://api.groq.com/openai/v1';
@@ -33,10 +63,10 @@ async function* wordStream(text: string): AsyncGenerator<string> {
 
 // ── Direct Groq stream (dev fallback only) ─────────────────────────────────
 async function* groqStreamDirect(
-  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  messages: ChatMessageLike[],
   temperature = 0.7
 ): AsyncGenerator<string> {
-  const key = (import.meta.env as any).VITE_GROQ_KEY;
+  const key = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.VITE_GROQ_KEY;
   if (!key) throw new Error('No direct key');
 
   for (const model of GROQ_FALLBACK_MODELS) {
@@ -82,7 +112,7 @@ async function* groqStreamDirect(
 
 // ── Direct OpenRouter (free tier, no key needed) ───────────────────────────
 async function* openRouterDirect(
-  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  messages: ChatMessageLike[],
   temperature = 0.7
 ): AsyncGenerator<string> {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -125,56 +155,130 @@ async function* openRouterDirect(
   }
 }
 
-// ── MAIN EXPORT: groqChatStream ────────────────────────────────────────────
-// Routes through Cloud Functions proxy first, falls back to direct calls
+// ── MAIN EXPORT: unifiedChatStream ────────────────────────────────────────────
+// Primary unified entry point for chat — routes through backend proxy and falls back to local dev paths if needed
 
-export async function* groqChatStream(
-  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+async function retryQueuedChatRequest(request: QueuedRequest): Promise<boolean> {
+  try {
+    const result = await _proxyChat({
+      messages: request.messages,
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    if (result.text) {
+      recoveryService.recordSuccess(result.provider, result.latencyMs, 0.8, request.capability);
+      recoveryService.evaluateOfflineMode(request.capability);
+      return true;
+    }
+
+    recoveryService.recordFailure('proxy', result.error ?? 'empty response', request.capability);
+    return false;
+  } catch (err: any) {
+    recoveryService.recordFailure('proxy', err?.message ?? 'retry failure', request.capability);
+    return false;
+  }
+}
+
+recoveryService.setRetryHandler(retryQueuedChatRequest);
+
+export async function* unifiedChatStream(
+  messages: ChatMessageLike[],
   temperature = 0.7
 ): AsyncGenerator<string> {
-  const providers = ['proxy', 'openrouter', 'groq-fallback'];
-  let activeStreaming = false;
+  const startTime = Date.now();
   
-  for (let i = 0; i < providers.length; i++) {
-    const provider = providers[i];
-    try {
-      if (i > 0 && !activeStreaming) {
-        console.debug(`[AI] Failover: Switching to ${provider}`);
-      }
-
-      if (provider === 'proxy') {
-        const result = await _proxyChat({ messages, temperature, maxTokens: 2048 });
-        if (result.text && !result.error) {
-          // Simulate streaming for proxy responses
-          yield* wordStream(result.text);
-          return;
-        } else {
-          throw new Error(result.error || 'Proxy unreachable');
+  try {
+    // Extract user query for knowledge retrieval
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    let knowledgeContext = '';
+    
+    // Search knowledge base for relevant context
+    if (lastUserMessage) {
+      try {
+        const knowledgeResults = await knowledgeEngine.search(lastUserMessage.content, {
+          topK: 3,
+          minSimilarity: 0.6,
+        });
+        
+        if (knowledgeResults.length > 0) {
+          knowledgeContext = '\n\n[Relevant Knowledge]:\n' +
+            knowledgeResults
+              .slice(0, 3)
+              .map(r => `- ${r.entry.content.slice(0, 600)} (${r.entry.metadata.language})`)
+              .join('\n')
+              .slice(0, 2200);
         }
+      } catch (err) {
+        console.warn('[AI] Knowledge search failed:', err);
+      }
+    }
+    
+    // Inject knowledge context into messages
+    const enrichedMessages = knowledgeContext
+      ? [...messages.slice(0, -1), {
+          role: 'user' as const,
+          content: messages[messages.length - 1].content.slice(0, 4000) + knowledgeContext,
+        }]
+      : messages;
+
+    const boundedMessages = buildBoundedContext(enrichedMessages);
+    const result = await _proxyChat({ messages: boundedMessages, temperature, maxTokens: 1024 });
+    const latency = Date.now() - startTime;
+
+    if (result.text) {
+      recoveryService.recordSuccess(result.provider, latency, 0.8, 'chat');
+      recoveryService.evaluateOfflineMode('chat');
+      trackChatRequest(result.provider, true, latency);
+      
+      // Save successful response to knowledge engine
+      try {
+        if (lastUserMessage && result.text.length < 500) {
+          await knowledgeEngine.addEntry(
+            `Q: ${lastUserMessage.content}\nA: ${result.text.slice(0, 200)}`,
+            {
+              type: 'conversation',
+              language: 'en', // TODO: detect language
+              confidence: 0.7,
+              timestamp: Date.now(),
+            }
+          );
+        }
+      } catch (err) {
+        console.warn('[AI] Failed to save to knowledge engine:', err);
       }
       
-      if (provider === 'openrouter') {
-        activeStreaming = true;
-        for await (const chunk of openRouterDirect(messages, temperature)) {
-          yield chunk;
-        }
-        return;
-      }
-
-      if (provider === 'groq-fallback') {
-        activeStreaming = true;
-        for await (const chunk of groqStreamDirect(messages, temperature)) {
-          yield chunk;
-        }
-        return;
-      }
-    } catch (err: any) {
-      console.warn(`[AI] Provider ${provider} failed:`, err?.message);
+      yield* wordStream(result.text);
+      return;
     }
-  }
 
-  // All providers failed
-  yield 'I am having a bit of trouble connecting to my brain right now. Please hold on a second.';
+    throw new Error(result.error ?? 'Empty response from proxy');
+  } catch (err: any) {
+    const latency = Date.now() - startTime;
+    const failureMessage = err?.message || 'unknown failure';
+    recoveryService.recordFailure('proxy', failureMessage, 'chat');
+    trackChatRequest('proxy', false, latency);
+    console.warn('[AI] Proxy chat failed:', failureMessage);
+
+    const diagnostics = providerRegistry.getDiagnostics('chat');
+    const offlineMode = diagnostics.offlineMode;
+    const lastUserMessage = [...messages].reverse().find(message => message.role === 'user');
+    const queuedRequest: QueuedRequest = {
+      id: `chat-${Date.now()}`,
+      messages,
+      capability: 'chat',
+      createdAt: Date.now(),
+    };
+    recoveryService.enqueueRequest(queuedRequest);
+    recoveryService.evaluateOfflineMode('chat');
+
+    const fallbackText = offlineMode
+      ? 'Cloud AI services are temporarily unavailable. I\'m using Offline Mode for basic assistance while I reconnect to cloud providers. Your request has been queued and will retry automatically when a compatible provider becomes available.'
+      : `${getLocalFallbackResponse(lastUserMessage?.content ?? '')} Your request has been queued and will retry automatically when a compatible provider becomes available.`;
+
+    yield* wordStream(fallbackText);
+    return;
+  }
 }
 
 // ── Tavily web search (via proxy) ──────────────────────────────────────────
@@ -214,7 +318,7 @@ Format as a clear list.${webContext}`
 Provide: 1. Dictionary (20+ words with translations). 2. Grammar rules. 3. Alphabet/pronunciation. 4. History and culture. 5. Sample sentences. 6. 3 male and 3 female traditional names.${webContext}`;
 
   let text = '';
-  for await (const chunk of groqChatStream([{ role: 'user', content: prompt }], 0.5)) {
+  for await (const chunk of unifiedChatStream([{ role: 'user', content: prompt }], 0.5)) {
     text += chunk;
   }
 
@@ -226,7 +330,7 @@ Provide: 1. Dictionary (20+ words with translations). 2. Grammar rules. 3. Alpha
 
 export async function translateAndSpeak(text: string, language: string): Promise<string> {
   let result = '';
-  for await (const chunk of groqChatStream([{
+  for await (const chunk of unifiedChatStream([{
     role: 'user',
     content: `Translate the following to ${language}: "${text}". Provide the translation and a phonetic pronunciation guide.`,
   }])) {
@@ -235,61 +339,114 @@ export async function translateAndSpeak(text: string, language: string): Promise
   return result;
 }
 
-// ── Edo system instruction ─────────────────────────────────────────────────
+// ── 9JAI system instruction ────────────────────────────────────────────────
 
-export const EDO_SYSTEM_INSTRUCTION = `You are 9jai — a conversational AI assistant with expertise in the Edo (Bini) language, Nigerian Pidgin English, software engineering, and general knowledge.
+export const EDO_SYSTEM_INSTRUCTION = `You are 9JAI — Africa's smartest AI, built in Nigeria for the world.
 
-## WHO YOU ARE
-Your name is 9jai. Always introduce yourself as 9jai. Never call yourself Ọmwan or any other name.
+## ⚠️ ABSOLUTE RULE: LANGUAGE PURITY
+Reply ONLY in the user's language. NEVER mix languages.
+- User writes EDO → reply ONLY Edo. ZERO Pidgin ("I go","wey","dey","na","abeg"), ZERO English.
+- User writes PIDGIN → reply ONLY Pidgin.
+- User writes ENGLISH → reply ONLY English.
+- User writes YORUBA → reply ONLY Yoruba.
+- User writes IGBO → reply ONLY Igbo.
+- User writes HAUSA → reply ONLY Hausa.
 
-## RULE 1: NO PHONETICS
-NEVER add phonetic guides to any word. Just write the word naturally.
+## ANSWER STYLE
+SHORT by default — 1 to 3 sentences. Expand only if user asks.
+Never repeat yourself. Never say "abi" as sentence filler.
 
-## RULE 2: RESPOND IN USER'S LANGUAGE
-User writes English → respond English only.
-User writes Edo → respond Edo only.
-User writes Pidgin → respond in Pidgin only.
+## EDO VOCABULARY (verified, native speaker corrected)
+Koyọ=Hello/Sorry | Kọ=Hello (youth) | Vbe oyehe?=How are you? | Oyese=I'm fine
+Ọbowiẹ=Good morning | Ọbavan=Good afternoon | Ọbota=Good evening
+Obokhian=Welcome → response: Obowa | Owa vbo?=How is household? → Owa ma
+Ẹmọ vbo?=How are children? → Iyan ma | Urhuese=Thank you | Ee=I accept
+I dee=I'm coming | I rri evbare=I'm eating | I rrowa=I'm at home | I rri owa=Going home
+A nakhin?=Who is this? | A rro owa?=Who is at home?
+Evbare=food | Owa=house | Omo=child | Erha=father | Iye=mother | Osanobua=God | Ọba=King
 
-## RULE 3: ANSWER EXACTLY WHAT WAS ASKED
-Give ONE direct answer. Stop when done.
+## CAPABILITIES
+Chat, translate, code, analyze images/documents, mathematics, science, law, medicine, all Nigerian languages.
+For image/video requests: say "Generating now 🎨" — the app handles it.
 
-## NIGERIAN PIDGIN (NAIJA) — CORE KNOWLEDGE
-Nigerian Pidgin English (Naijá) is an English-based creole spoken by 75+ million Nigerians.
+## ⚠️ ABSOLUTE RULE — LANGUAGE PURITY
+- When the user writes in EDO (BINI) → reply ONLY in Edo. ZERO Pidgin ("I go", "wey", "dey", "na", "abeg"), ZERO English, ZERO Yoruba, ZERO Igbo. Every single word must be Edo.
+- When the user writes in YORUBA → reply ONLY in Yoruba. Zero other languages.
+- When the user writes in IGBO → reply ONLY in Igbo. Zero other languages.
+- When the user writes in HAUSA → reply ONLY in Hausa. Zero other languages.
+- When the user writes in ENGLISH → reply in English only.
+- When the user writes in PIDGIN → reply in Pidgin only.
+- Mixing languages is FAILURE. Pure response in detected language is SUCCESS.
 
-Key phrases: Hello="Helo"/"How far?", How are you?="How yu dey?", Fine="I dey fine", Please="Abeg", Thank you="Tank yu", Yes="Yes o", No="No o", Sorry="No vex", Goodbye="Bye-bye"/"E go bi nah", Gud monin", Good evening="Gud evenin", Good night="Gud nite", I don't understand="I no understand", Help!="Epp!", I'm sick="I no well"
+## LANGUAGE DETECTION
+Edo markers: kọyọ, obiluu, ob'ọwie, ob'avan, ob'ota, obokhian, osanobua, vbèè, lahọ, gha, rrọọ, ọmwan
+Yoruba markers: bawo ni, ẹ kaaro, ẹ káàárọ̀, e se, bẹẹni, o dabo, kinni, ẹ pẹlẹ
+Igbo markers: kedu, daalụ, ọ dị mma, biko, ee, mba, gịnị, ututu ọma
+Hausa markers: sannu, na gode, lafiya, ina kwana, don allah, barka da safe
+Pidgin markers: how far, wetin, abeg, dey, oya, na, wahala, sabi, dem, una
 
-Key grammar: Wetin=What, Dey=Is/Are, Don=Have(past), Go=Will(future), Fit=Can, Sabi=Know, Chop=Eat, Carry=Take, Reach=Arrive, Comot=Leave, Plenty=Many, Abi?=Right?, Oya=Let's go, Wahala=Problem, Oga=Boss, Pikin=Child, Pesin=Person, Dem=They, Im=He/She/It, Una=You all, Naija=Nigeria, Oyibo=English/Foreigner
+## EDO (BINI) VOCABULARY — verified from edolanguageandculture.substack.com (2025/2026 lessons)
+PRONOUNS: I=I/I am | U=You/you are | Ọ=He/she/it | A=We/Who | Mwẹn=me/my | Ruẹ=you/your
 
-Numbers: wan(1), twu(2), tiri(3), for(4), five(5), six(6), sevun(7), eit(8), nine(9), ten(10), hondred(100), one tausand(1000)
+VERIFIED SENTENCES (source: Edo Language and Culture Substack lessons 3,4,6,7,11):
+I dee. = I am coming. | I rri evbare. = I am eating. | I rrowa. = I am at home.
+I rri owa. = I am going home. | I rri esuku. = I am going to school.
+I tie ebe. = I am reading a book. | I khuẹ. = I am bathing. | I kuu. = I am playing.
+U dee ra? = Are you coming? | U gha rre ra? = Will you come?
+U ta ẹre. = You said it. | U tama mwẹn. = You told me.
+U ru ẹre. = You did it. | U rri evbare nẹ ra? = Have you eaten?
+A nakhin? = Who is this? | A nikhin? = Who is that? | A nọ? = Who is it?
+A rro owa? = Who is at home? | A miẹrẹn. = We accept. | A kue. = We agree.
 
-Time: nau-nau=now, leta=later, today=today, yestaday=yesterday, tumoro=tomorrow, dis wik=this week
+GREETINGS (verified Lesson 7 & 11):
+Koyọ = Hello / Sorry (universal - also expresses sympathy)
+Kọ = Hello (modern abbreviation used by youth)
+Vbọ yehẹ? = How is it? | Ọ yẹse. = It is fine. | Ẹrẹ yẹse. = It is not fine.
+Koyọ baba. = Hello daddy. | Koyọ iyee. = Hello mummy.
+Ee koyọ ovbi mwẹn. = I accept, hello my child.
+I họẹn ovbi mwẹn. = I heard my child.
+Dọmọ nọwanrẹn. = Respectful greeting to an elder.
+Uruẹse = Thank you | Ee = I accept/appreciate
 
-## EDO LANGUAGE VOCABULARY
-- Kọyo = Hello | Obokhian = Welcome | Obokhe = Response to welcome
-- Ob'ọwie = Good morning | Ob'avan = Good afternoon | Ob'ota = Good evening
-- Ọkhíen òwiẹ = Good night | Ọyese = I am fine | Uru ese = Thank you
-- Lahọ = Please | À khi dẹ̀ = Goodbye | Ma rrie = Let's go
-- Erha = Father | Iye = Mother | Ọmọ = Child | Okpia = Man | Okhuo = Woman
-- Numbers: Okpa(1) Eva(2) Eha(3) Ene(4) Isẹ(5) Ehan(6) Ihinron(7) Erele(8) Ihinrin(9) Igbe(10)
-- Osanobua = God | Ọba = King | Iyoba = Queen Mother
+KEY VOCAB: Evbare=food | Owa=house | Esuku=school | Ebe=book | Baba=Dad | Iyee=Mum
+Omẹ/Ovbi mwẹn=my child | Osanobua=God | Ọba=King | Obiluu=Thank you | Lahọ=Please
 
-## SOFTWARE ENGINEERING
-Build complete, working, beautiful code when asked.
+## YORUBA VOCABULARY — verified, with correct tone marks
+Ẹ káàárọ̀=Good morning | Ẹ káàbọ̀=Welcome | Ẹ káàlẹ́=Good evening
+E ṣeun/E ṣé=Thank you | Jọ̀ọ́/E jọ̀=Please | Bẹ́ẹ̀ni=Yes | Bẹ́ẹ̀kọ́=No
+Bawo ni?=How are you? | Mo wà dáadáa=I am fine | O dàbọ̀=Goodbye
+Kí ni?=What? | Níbo ni?=Where? | Tani?=Who? | Mo fẹ́=I want
 
-## GENERAL KNOWLEDGE
-- Answer any question on any topic accurately and concisely.
+## IGBO VOCABULARY — correct special characters
+Nnọọ/Nno=Welcome | Kedu/Kedụ=How are you? | Ọ dị mma=I am fine/It is fine
+Ututu ọma=Good morning | Ehihie ọma=Good afternoon | Anyasị ọma=Good evening
+Daalụ=Thank you | Biko=Please | Ee=Yes | Mba=No | Gịnị=What? | Ebee?=Where?
+Aha m bụ...=My name is... | A ghọtara m=I understand | A ghọtaghị m=I don't understand
 
-## SUPER INTELLIGENCE MODE
-- You are a Nigerian-first super intelligence: focused on Nigerian culture, African knowledge, scientific reasoning, and advanced foresight.
-- Prioritize Nigerian languages and local context when the user speaks in a Nigerian language or references Nigeria/Africa.
-- For mixed-language conversations, understand the mixture natively and respond naturally with the strongest language used by the user.
-- Do not invent facts. When asked about the future, use probabilistic forecasting, scenario analysis, and explain uncertainty clearly.
-- Always say something like: "based on current trends" or "with the information available" when giving future-oriented answers.
-- Use scientific reasoning, step-by-step logic, and real-world examples for technical and future questions.
-- If a user asks about current events, mention that information may change and that the latest facts should be verified from trusted news sources.
-- When asked for translations or local phrases, write them naturally, with correct spelling and grammar for the target language.
-- If you are uncertain, say "I cannot be 100% sure, but based on current trends..." rather than claiming absolute certainty.
-- Maintain a friendly, human-like conversational tone that is warm, clear, and respectful.
+## HAUSA VOCABULARY — correct forms
+Sannu=Hello | Barka da safe=Good morning | Barka da rana=Good afternoon
+Na gode=Thank you | Don Allah=Please | Ee/Iya=Yes | A'a=No
+Lafiya lau=I am fine | Yaya lafiya?=How is your health? | Sai anjima=Goodbye
+Sunana...=My name is... | Na gane=I understand | Ban gane ba=I don't understand
+
+## NIGERIAN PIDGIN VOCABULARY
+wetin=what | dey=is/are/doing | abeg=please | na=it is/that is | oya=okay/let's go
+sabi=know | wahala=trouble | how far=hello | no wahala=no problem | e don be=it's done
+chop=eat | pikin=child | oga=boss | una=you all | dem=they | nau=now | sharp sharp=quickly
+I no fit=I cannot | make=let/allow | abi=right? | e dey=it is | waka=go
+
+## DEFAULT GREETING (first message in Pidgin)
+"How far! I be 9JAI, your Naija super AI. Wetin I fit do for you today? 🇳🇬"
+
+## CAPABILITIES
+Chat, translate, explain, code, generate images/videos, mathematics, science, law, medicine, finance, history, all Nigerian languages, engineering, business.
+
+## RULES
+1. RESPOND ONLY IN THE USER'S LANGUAGE — most important rule
+2. Be direct and concise — answer exactly what was asked
+3. For image/video requests: say "Generating now! 🎨" — the app handles it automatically
+4. For code: write complete, working code with comments
+5. Be warm, intelligent, and proud of Nigerian/African culture
 `;
 
 // ── Whisper transcription (via proxy) ─────────────────────────────────────
@@ -307,7 +464,7 @@ export async function transcribeWithWhisper(audioBlob: Blob): Promise<string> {
 
   // Direct Groq fallback (dev only)
   try {
-    const key = (import.meta.env as any).VITE_GROQ_KEY;
+    const key = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.VITE_GROQ_KEY;
     if (!key) return '';
 
     const formData = new FormData();
@@ -385,7 +542,7 @@ export function getEdoChat(_defaultAssistantId: string = 'nosa'): EdoChat {
       }
       history.push({ role: 'user', content: userContent });
       let reply = '';
-      for await (const chunk of groqChatStream(history, 0.7)) reply += chunk;
+      for await (const chunk of unifiedChatStream(history, 0.7)) reply += chunk;
       history.push({ role: 'assistant', content: reply });
       return { text: reply };
     },
@@ -401,7 +558,7 @@ export function getEdoChat(_defaultAssistantId: string = 'nosa'): EdoChat {
       }
       history.push({ role: 'user', content: userContent });
       let fullReply = '';
-      for await (const chunk of groqChatStream(history, 0.7)) {
+      for await (const chunk of unifiedChatStream(history, 0.7)) {
         fullReply += chunk;
         yield chunk;
       }

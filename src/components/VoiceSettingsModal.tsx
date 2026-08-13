@@ -160,7 +160,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
                 <div>
                   <p className="font-semibold text-gray-900 mb-1">{selectedVoice.name}</p>
                   <p className="text-sm text-gray-600 mb-2">{selectedVoice.description}</p>
-                  <p className="text-xs text-gray-500">Accent: {selectedVoice.accentProfile}</p>
+                  <p className="text-xs text-gray-500">Region: {selectedVoice.region}</p>
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -232,9 +232,9 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
               }
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#008751]"
             >
-              {Object.entries(AFRICAN_LANGUAGES_VOICE).map(([code, lang]) => (
-                <option key={code} value={code}>
-                  {lang.label}
+              {AFRICAN_LANGUAGES_VOICE.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang}
                 </option>
               ))}
             </select>
@@ -246,7 +246,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
               Tone
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {(['warm', 'neutral', 'professional', 'casual', 'enthusiastic'] as const).map(tone => (
+              {(['warm', 'neutral', 'formal', 'casual', 'inspiring'] as const).map(tone => (
                 <motion.button
                   key={tone}
                   whileHover={{ scale: 1.05 }}
@@ -272,15 +272,15 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
             <select
               value={customization.emotion}
               onChange={(e) =>
-                setCustomization(prev => ({ ...prev, emotion: e.target.value }))
+                setCustomization(prev => ({ ...prev, emotion: e.target.value as VoiceCustomization['emotion'] }))
               }
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#008751]"
             >
               <option value="neutral">Neutral</option>
               <option value="happy">Happy</option>
               <option value="serious">Serious</option>
-              <option value="passionate">Passionate</option>
-              <option value="calm">Calm</option>
+              <option value="curious">Curious</option>
+              <option value="encouraging">Encouraging</option>
             </select>
           </div>
 

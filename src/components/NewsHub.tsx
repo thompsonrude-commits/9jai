@@ -19,6 +19,10 @@ interface NewsItem {
   isHistorical?: boolean;
 }
 
+interface NewsHubProps {
+  languageName?: string;
+}
+
 export default function NewsHub({ languageName = 'Nigerian Languages' }: NewsHubProps) {
   const [news, setNews] = useState<NewsItem[]>([
     {

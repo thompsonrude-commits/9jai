@@ -42,6 +42,10 @@
         "function": "aiImage"
       },
       {
+        "source": "/api/ai/fetchImage",
+        "function": "aiFetchImage"
+      },
+      {
         "source": "/api/ai/transcribe",
         "function": "aiTranscribe"
       },
@@ -52,6 +56,102 @@
       {
         "source": "/api/ai/health",
         "function": "aiHealth"
+      },
+      {
+        "source": "/api/ai/liveness",
+        "function": "aiLiveness"
+      },
+      {
+        "source": "/api/ai/ready",
+        "function": "aiReady"
+      },
+      {
+        "source": "/api/v1/chat",
+        "function": "aiChat"
+      },
+      {
+        "source": "/api/v1/stream",
+        "function": "aiStream"
+      },
+      {
+        "source": "/api/v1/search",
+        "function": "aiSearch"
+      },
+      {
+        "source": "/api/v1/speech/transcribe",
+        "function": "aiTranscribe"
+      },
+      {
+        "source": "/api/v1/speech/synthesize",
+        "function": "aiTTS"
+      },
+      {
+        "source": "/api/v1/health",
+        "function": "aiHealth"
+      },
+      {
+        "source": "/api/ai/time",
+        "function": "aiTime"
+      },
+      {
+        "source": "/api/ai/weather",
+        "function": "aiWeather"
+      },
+      {
+        "source": "/api/v1/documents",
+        "function": "v1Document"
+      },
+      {
+        "source": "/api/v1/documents/**",
+        "function": "v1Document"
+      },
+      {
+        "source": "/api/v1/ocr",
+        "function": "v1Ocr"
+      },
+      {
+        "source": "/api/v1/vision/analyze",
+        "function": "aiVision"
+      },
+      {
+        "source": "/api/ai/vision",
+        "function": "aiVision"
+      },
+      {
+        "source": "/api/v1/image/generate",
+        "function": "v1ImageGenerate"
+      },
+      {
+        "source": "/api/v1/image/fetch",
+        "function": "aiFetchImage"
+      },
+      {
+        "source": "/api/v1/video/process",
+        "function": "v1VideoProcess"
+      },
+      {
+        "source": "/api/v1/video/status/**",
+        "function": "v1VideoStatus"
+      },
+      {
+        "source": "/api/v1/video/worker/health",
+        "function": "v1VideoWorkerHealth"
+      },
+      {
+        "source": "/api/v1/plugins",
+        "function": "v1PluginRegistry"
+      },
+      {
+        "source": "/api/v1/plugins/**",
+        "function": "v1PluginRegistry"
+      },
+      {
+        "source": "/api/v1/connectors",
+        "function": "v1ConnectorRegistry"
+      },
+      {
+        "source": "/api/v1/connectors/**",
+        "function": "v1ConnectorRegistry"
       },
       {
         "source": "**",

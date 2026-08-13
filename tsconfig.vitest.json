@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "include": ["core/modelManager/__tests__/**/*.ts", "core/modelManager/**/*.ts"]
+}

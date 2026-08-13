@@ -39,6 +39,9 @@ This index helps you find the right documentation for your needs.
 | [SESSION_COMPLETION_SUMMARY.md](SESSION_COMPLETION_SUMMARY.md) | Detailed session summary | Admins, Developers |
 | [DEPLOYMENT_STATUS_MAY_2026_FINAL.md](DEPLOYMENT_STATUS_MAY_2026_FINAL.md) | Full deployment details | Admins, DevOps |
 | [CURRENT_STATUS.md](CURRENT_STATUS.md) | Current platform status | Everyone |
+| [ENVIRONMENT_CONFIGURATION_GUIDE.md](ENVIRONMENT_CONFIGURATION_GUIDE.md) | Environment and secret setup | DevOps, Developers |
+| [PROVIDER_CONFIGURATION_GUIDE.md](PROVIDER_CONFIGURATION_GUIDE.md) | Provider routing and status | Developers |
+| [PRODUCTION_SECRETS_CHECKLIST.md](PRODUCTION_SECRETS_CHECKLIST.md) | Production secret readiness checklist | DevOps, Admins |
 
 ### Getting Started
 | Document | Purpose | Audience |
@@ -91,6 +94,23 @@ This index helps you find the right documentation for your needs.
 |----------|---------|----------|
 | [NEXT_STEPS_ACTION_PLAN.md](NEXT_STEPS_ACTION_PLAN.md) | Action plan for next steps | Developers, Admins |
 | [FINAL_DEPLOYMENT_SUMMARY.md](FINAL_DEPLOYMENT_SUMMARY.md) | Final deployment summary | Admins |
+| [FINAL_RELEASE_AUDIT.md](FINAL_RELEASE_AUDIT.md) | Release audit and certification | DevOps, Admins |
+| [VERSION_1_0_COMPLETION_REPORT.md](VERSION_1_0_COMPLETION_REPORT.md) | Version 1.0 completion summary | DevOps, Admins |
+| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | Known constraints and deferred work | DevOps, Developers |
+| [PRODUCTION_RELEASE_CHECKLIST.md](PRODUCTION_RELEASE_CHECKLIST.md) | Version 1.0 operational release checklist | Release, Ops |
+| [DOCUMENTATION_VALIDATION_REPORT.md](DOCUMENTATION_VALIDATION_REPORT.md) | Documentation integrity validation report | Docs, Ops |
+| [DOCUMENTATION_FREEZE_CERTIFICATE.md](DOCUMENTATION_FREEZE_CERTIFICATE.md) | Documentation freeze certificate | Docs, Ops |
+| [PROJECT_STATUS_DASHBOARD.md](PROJECT_STATUS_DASHBOARD.md) | Executive status dashboard | Product, Ops |
+| [FINAL_DOCUMENTATION_STATUS.md](FINAL_DOCUMENTATION_STATUS.md) | Final documentation health and validation summary | Docs, Audit |
+| [STAGING_DEPLOYMENT_REPORT.md](STAGING_DEPLOYMENT_REPORT.md) | Staging deployment verification | DevOps, Ops |
+| [LIVE_PROVIDER_VALIDATION.md](LIVE_PROVIDER_VALIDATION.md) | Live provider integration verification | DevOps, Ops |
+| [END_TO_END_TEST_REPORT.md](END_TO_END_TEST_REPORT.md) | End-to-end test evidence | QA, Ops |
+| [PERFORMANCE_BENCHMARKS.md](PERFORMANCE_BENCHMARKS.md) | Performance benchmark metrics | QA, Ops |
+| [SECURITY_VALIDATION.md](SECURITY_VALIDATION.md) | Security validation evidence | Security, Ops |
+| [OBSERVABILITY_REPORT.md](OBSERVABILITY_REPORT.md) | Observability validation | Ops, DevOps |
+| [USER_ACCEPTANCE_REPORT.md](USER_ACCEPTANCE_REPORT.md) | User acceptance testing report | QA, Product |
+| [VERSION_1_0_RC1_REPORT.md](VERSION_1_0_RC1_REPORT.md) | Release candidate RC1 summary | Release, Ops |
+| [GO_LIVE_RECOMMENDATION.md](GO_LIVE_RECOMMENDATION.md) | Final go-live recommendation | Product, Ops |
 
 ---
 
@@ -136,19 +156,19 @@ This index helps you find the right documentation for your needs.
 ## 📊 DOCUMENTATION STATISTICS
 
 ### Total Documents
-- **Total Files:** 25+ documentation files
+- **Total Files:** 48+ curated documentation files
 - **Total Pages:** 100+ pages of documentation
 - **Last Updated:** May 20, 2026
 
 ### Document Categories
-- Platform Status: 4 documents
+- Platform Status: 7 documents
 - Getting Started: 3 documents
 - Features: 4 documents
 - Language & Vocabulary: 4 documents
 - Advanced Features: 4 documents
 - Regional Languages: 3 documents
 - Updates & Changes: 4 documents
-- Planning: 2 documents
+- Planning & Release: 19 documents
 
 ---
 

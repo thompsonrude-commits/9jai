@@ -1,0 +1,18 @@
+﻿{
+    "body":  {
+                 "status":  "success",
+                 "data":  {
+                              "text":  "Extracted text from https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf (language=en)",
+                              "layout":  {
+                                             "pages":  [
+                                                           {
+                                                               "pageNumber":  1,
+                                                               "blocks":  ""
+                                                           }
+                                                       ]
+                                         }
+                          }
+             },
+    "status":  200,
+    "timeMs":  1567
+}

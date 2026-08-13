@@ -5,6 +5,8 @@
 
 import { defineSecret } from 'firebase-functions/params';
 import { ChatMessage } from '../types';
+import { normalizeChatMessagesForProvider } from '../providerPayload';
+import { getSecretValue } from './secretHelpers';
 
 export const MISTRAL_KEY = defineSecret('MISTRAL_KEY');
 
@@ -23,8 +25,10 @@ export async function mistralChat(
   temperature = 0.7,
   maxTokens = 2048
 ): Promise<{ text: string; model: string; tokensUsed?: number }> {
-  const key = MISTRAL_KEY.value();
+  const key = getSecretValue('MISTRAL_KEY', MISTRAL_KEY);
   if (!key) throw new Error('MISTRAL_KEY secret not configured');
+
+  const normalizedMessages = normalizeChatMessagesForProvider(messages, 'mistral');
 
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -34,7 +38,7 @@ export async function mistralChat(
     },
     body: JSON.stringify({
       model,
-      messages,
+      messages: normalizedMessages,
       temperature,
       max_tokens: maxTokens,
     }),

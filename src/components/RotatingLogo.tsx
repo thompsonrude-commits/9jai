@@ -51,11 +51,13 @@ export default function RotatingLogo() {
 // ── Large hero logo — used in welcome screen ──────────────────────────────
 export function RotatingLogoHero() {
   return (
-    <div className="mb-3">
+    <div className="mb-3 relative">
+      {/* Outer glow pulse */}
+      <div className="absolute inset-0 rounded-full bg-[#00ff88]/10 blur-xl animate-pulse" style={{ transform: 'scale(1.5)' }} />
       <img
         src={LOGO_SRC}
         alt="9jai"
-        className="logo-spin-3d-lg w-20 h-20 object-contain"
+        className="logo-spin-3d-lg w-20 h-20 object-contain relative z-10"
         style={{ background: 'none', borderRadius: 0 }}
       />
     </div>

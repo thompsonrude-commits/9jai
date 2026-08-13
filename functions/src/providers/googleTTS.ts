@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from 'firebase-functions/params';
+import { getSecretValue } from './secretHelpers';
 
 /**
  * Google Cloud Text-to-Speech — Nigerian English Voices
@@ -67,8 +68,8 @@ export async function synthesizeNigerianSpeech(
   text: string,
   assistantId: string
 ): Promise<{ audioBase64: string; contentType: string } | null> {
-  const key = GOOGLE_TTS_KEY.value();
-  if (!key || key === 'placeholder') return null;
+  const key = getSecretValue('GOOGLE_TTS_KEY', GOOGLE_TTS_KEY);
+  if (!key) return null;
 
   const voiceConfig = ASSISTANT_VOICES[assistantId] || ASSISTANT_VOICES.nosa;
 

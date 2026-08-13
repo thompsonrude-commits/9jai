@@ -138,62 +138,58 @@ export async function detectLanguageFromInput(text: string): Promise<{
   confidence: number;
   method: 'keyword' | 'detection' | 'default';
 }> {
-  if (!text || !text.trim()) {
+  if (!text?.trim()) {
     return { code: 'pcm', name: 'Nigerian Pidgin', confidence: 0.3, method: 'default' };
   }
-
   const lc = text.toLowerCase().trim();
-  const normalized = lc.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // 1. Try keyword matching first (fastest, most reliable)
-  const tokens = lc.split(/\s+/);
-  const langScores: Record<string, number> = {};
+  // STRICT unique markers — each language has markers NO other language uses
+  const STRICT: Array<{ code: string; name: string; markers: string[] }> = [
+    { code: 'yo',  name: 'Yoruba',         markers: ['bawo ni', 'ẹ kaaro', 'ẹ káàárọ̀', 'ẹ kaale', 'e se pupo', 'bẹẹni', 'bẹ́ẹ̀ni', 'o dabo', 'o dàbọ̀', 'kinni', 'ẹ pẹlẹ', 'e ṣeun', 'yoruba', 'jọ̀ọ́', 'bawo'] },
+    { code: 'ig',  name: 'Igbo',           markers: ['kedu', 'kedụ', 'daalụ', 'ọ dị mma', 'igbo kwenu', 'gịnị', 'chukwu okike', 'igbo', 'biko', 'ututu ọma', 'nno', 'nnọọ', 'ehihie ọma'] },
+    { code: 'ha',  name: 'Hausa',          markers: ['sannu da zuwa', 'ina kwana', 'lafiya lau', 'yaya dai', 'barka da safe', 'barka da rana', 'don allah', 'hausa', 'na gode', 'sannu'] },
+    { code: 'edo', name: 'Edo',            markers: [
+        // Verified from edolanguageandculture.substack.com
+        'koyọ', 'kọyọ', 'koyo', 'vbọ yehẹ', 'ọ yẹse', 'uruẹse',
+        'i dee', 'i rri', 'i rrowa', 'u dee', 'u gha', 'u ta ẹre', 'u tama',
+        'a nakhin', 'a nikhin', 'a miẹrẹn', 'a kue', 'a rro owa',
+        'dọmọ', 'ovbi mwẹn', 'omẹ', 'iyee', 'evbare', 'esuku',
+        // Traditional markers
+        'obiluu', 'ob\'ọwie', 'ob\'avan', 'ob\'ota', 'obokhian', 'osanobua',
+        'uzébu', 'bini', 'benin city', 'mwẹn', 'lahọ', 'ẹdo',
+    ]},
+    { code: 'sw',  name: 'Swahili',        markers: ['habari gani', 'asante sana', 'karibu sana', 'hakuna matata', 'swahili', 'habari', 'jambo', 'asante', 'karibu', 'tafadhali', 'kwaheri'] },
+    { code: 'efk', name: 'Efik',           markers: ['abasi yaimo', 'obong', 'ekpe efik', 'efik', 'emesiere', 'mokom', 'mbok'] },
+    { code: 'tiv', name: 'Tiv',            markers: ['tiv kwagh', 'iyol tiv', 'mom tiv', 'tiv', 'msugh', 'aôndo', 'tar tiv'] },
+    { code: 'fuv', name: 'Fulfulde',       markers: ['jaaraama', 'nyuurali', 'fulfulde', 'fulani', 'jam waali', 'tiyaabu', 'baraaji', 'mi yiði', 'mi anndi'] },
+    { code: 'pcm', name: 'Nigerian Pidgin',markers: ['how far', 'wetin dey', 'abeg o', 'no wahala', 'i dey fine', 'naija', 'na so', 'oya make', 'e don be', 'pidgin', 'how you dey', 'wetin', 'abeg', 'oya na'] },
+    { code: 'en',  name: 'English',        markers: ['hello', 'good morning', 'how are you', 'please', 'thank you', 'what is', 'can you', 'i need', 'could you', 'hi there', 'good evening'] },
+  ];
 
-  for (const token of tokens) {
-    const clean = token.replace(/[^\p{L}]/gu, '');
-    const cleanNorm = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    // Check direct matches and partial matches
-    for (const [keyword, langCode] of KEYWORD_INDEX) {
-      if (keyword === clean || keyword === cleanNorm || clean.includes(keyword) || cleanNorm.includes(keyword)) {
-        langScores[langCode] = (langScores[langCode] || 0) + 1;
+  for (const lang of STRICT) {
+    for (const marker of lang.markers) {
+      if (lc.includes(marker)) {
+        return { code: lang.code, name: lang.name, confidence: 0.92, method: 'keyword' };
       }
     }
   }
 
-  if (Object.keys(langScores).length > 0) {
-    const topLang = Object.entries(langScores).sort((a, b) => b[1] - a[1])[0];
-    const code = topLang[0];
-    const route = LANGUAGE_ROUTES[code];
-    return {
-      code,
-      name: route.name,
-      confidence: Math.min(0.95, topLang[1] / tokens.length),
-      method: 'keyword',
-    };
-  }
+  // Script detection (Arabic, Chinese, etc.)
+  if (/[\u0600-\u06FF]/.test(text)) return { code: 'ar', name: 'Arabic', confidence: 0.95, method: 'keyword' };
+  if (/[\u4E00-\u9FFF]/.test(text)) return { code: 'zh', name: 'Chinese', confidence: 0.95, method: 'keyword' };
+  if (/[\u0400-\u04FF]/.test(text)) return { code: 'ru', name: 'Russian', confidence: 0.95, method: 'keyword' };
 
-  // 2. Fall back to language detection
+  // Library detection fallback
   try {
     const detected = await detectLanguage(text);
-    const route = LANGUAGE_ROUTES[detected.code] || LANGUAGE_ROUTES.en;
-    return {
-      code: route.code,
-      name: route.name,
-      confidence: detected.confidence,
-      method: 'detection',
-    };
-  } catch {
-    // ignore
-  }
+    if (detected.code && detected.confidence > 0.65) {
+      const route = LANGUAGE_ROUTES[detected.code];
+      return { code: detected.code, name: route?.name || detected.code, confidence: detected.confidence, method: 'detection' };
+    }
+  } catch { /* ignore */ }
 
-  // 3. Default to Pidgin
-  return {
-    code: 'pcm',
-    name: 'Nigerian Pidgin',
-    confidence: 0.4,
-    method: 'default',
-  };
+  // Default: Nigerian Pidgin
+  return { code: 'pcm', name: 'Nigerian Pidgin', confidence: 0.4, method: 'default' };
 }
 
 /**
@@ -222,26 +218,34 @@ export function shouldAutoSwitch(confidence: number): boolean {
  * Get homepage system prompt with language context
  */
 export function getHomepageSystemPrompt(languageCode: string): string {
-  const route = LANGUAGE_ROUTES[languageCode];
-  if (!route) {
-    return `You are 9jai, a multilingual AI assistant. Respond in the user's language.`;
-  }
+  const PROMPTS: Record<string, string> = {
+    pcm: `You are 9JAI. You ONLY speak Nigerian Pidgin English (Naija). NEVER mix in Yoruba, Igbo, Hausa, or Edo words.
+Pidgin rules: use wetin, dey, abeg, oya, sabi, wahala, no wahala, how far, e dey, na, dem, una, im, pikin, oga, nau naturally.
+Greet first time: "How far! I be 9JAI. Wetin I fit do for you today? 🇳🇬"`,
 
-  const prompts: Record<string, string> = {
-    pcm: `You are 9jai, a Nigerian Pidgin speaking assistant. Greet warmly in Pidgin. Use natural Nigerian speech patterns, slang, and humor. Be conversational, helpful, and culturally aware.`,
-    yo: `You are 9jai, a Yoruba speaking assistant. Respond in Yoruba naturally. Preserve tone marks and cultural context. Be warm and respectful.`,
-    ig: `You are 9jai, an Igbo speaking assistant. Respond in Igbo naturally. Use proper Igbo phrases and cultural greetings. Be friendly and helpful.`,
-    ha: `You are 9jai, a Hausa speaking assistant. Respond in Hausa naturally. Use proper greetings and respectful speech patterns. Be clear and helpful.`,
-    edo: `You are 9jai, an Edo (Bini) speaking assistant. Greet warmly with "Kọyọ" and always respond in Edo language. Use authentic Edo phrases: "Obiluu" (thank you), "Ọbowiẹ" (good morning), "Ọbavan" (good afternoon), "Ọbota" (good evening), "Uzébu" (great/excellent), "Obo kia" (welcome). Be eloquent, culturally aware, and preserve Edo cultural context.`,
-    efk: `You are 9jai, an Efik speaking assistant. Respond in Efik naturally. Be culturally respectful and warm.`,
-    tiv: `You are 9jai, a Tiv speaking assistant. Respond in Tiv naturally. Be helpful and culturally aware.`,
-    fuv: `You are 9jai, a Fulfulde speaking assistant. Respond in Fulfulde naturally. Be respectful and clear.`,
-    kan: `You are 9jai, a Kanuri speaking assistant. Respond in Kanuri naturally. Be helpful and warm.`,
-    sw: `You are 9jai, a Swahili speaking assistant. Respond in Swahili naturally. Be friendly and helpful.`,
-    en: `You are 9jai, a multilingual AI assistant. Respond in English clearly and helpfully.`,
+    yo: `You are 9JAI. You ONLY speak Yoruba. NEVER mix Pidgin, Igbo, Hausa or Edo.
+Use: Ẹ káàárọ̀ (morning), Ẹ káàlẹ́ (evening), E se (thanks), Bẹẹni (yes), Bẹẹkọ (no), Bawo ni (how are you), E jọ (please), O dabo (bye), Kinni (what).
+Greet: "Ẹ káàbọ̀! Mo jẹ́ 9JAI. Kí ni mo lè ṣe fún yín?"`,
+
+    ig: `You are 9JAI. You ONLY speak Igbo. NEVER mix Pidgin, Yoruba, Hausa or Edo.
+Use: Ututu ọma (morning), Ehihie ọma (afternoon), Daalụ (thanks), Biko (please), Ee (yes), Mba (no), Kedu (how are you), Ọ dị mma (fine), Nno (welcome), Gịnị (what).
+Greet: "Nnọọ! Aha m bụ 9JAI. Gịnị m ga-enyere gị aka?"`,
+
+    ha: `You are 9JAI. You ONLY speak Hausa. NEVER mix Pidgin, Yoruba, Igbo or Edo.
+Use: Barka da safe (morning), Barka da rana (afternoon), Na gode (thanks), Don Allah (please), Eh (yes), A'a (no), Yaya dai (how are you), Lafiya lau (fine), Sannu (hello).
+Greet: "Sannu! Ni ne 9JAI. Me zan iya taimaka maka?"`,
+
+    edo: `You are 9JAI. You ONLY speak Edo (Bini) language from Edo State, Nigeria. NEVER mix Pidgin, Yoruba, Igbo or Hausa.
+Use: Kọyọ (hello), Ob'ọwie (good morning), Ob'avan (afternoon), Ob'ota (evening), Obiluu (thank you), Lahọ (please), Obokhian (welcome), Osanobua (God), Ọba (king), Uzébu (excellent).
+Greet: "Kọyọ! I be 9JAI. Vbèè I ghi zẹ iran nẹ?"`,
+
+    efk: `You are 9JAI. You ONLY speak Efik. Greet: "Abasi yaimo! Mi ye 9JAI."`,
+    tiv: `You are 9JAI. You ONLY speak Tiv. Greet: "Iye! Nyi 9JAI."`,
+    fuv: `You are 9JAI. You ONLY speak Fulfulde. Greet: "Jaaraama! Mi woni 9JAI."`,
+    sw: `You are 9JAI. You ONLY speak Swahili. Greet: "Karibu! Mimi ni 9JAI. Ninaweza kukusaidia nini leo?"`,
+    en: `You are 9JAI. Respond in clear, helpful English. Greet: "Hello! I'm 9JAI. How can I help you today?"`,
   };
-
-  return prompts[languageCode] || prompts.en;
+  return PROMPTS[languageCode] ?? PROMPTS['pcm'];
 }
 
 /**

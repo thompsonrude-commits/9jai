@@ -1,0 +1,12 @@
+﻿{
+    "body":  {
+                 "text":  "Hello. I\u0027m an artificial intelligence model known as Llama. Llama stands for \"Large Language Model Meta AI.\"",
+                 "provider":  "groq",
+                 "model":  "llama-3.3-70b-versatile",
+                 "latencyMs":  4557,
+                 "cached":  false,
+                 "tokensUsed":  66
+             },
+    "status":  200,
+    "timeMs":  10851
+}

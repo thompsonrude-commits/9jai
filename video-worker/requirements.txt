@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+diffusers==0.32.2
+transformers==4.47.1
+accelerate==1.2.1
+torch==2.5.1
+imageio[ffmpeg]==2.36.1
+Pillow==11.1.0
+safetensors==0.5.2

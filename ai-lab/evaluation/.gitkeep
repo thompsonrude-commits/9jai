@@ -1,0 +1,6 @@
+# evaluation/
+# Evaluation harnesses, test sets, and scoring scripts.
+#
+# TODO Phase 3: Add translation_eval.py — BLEU / chrF / COMET scoring
+# TODO Phase 3: Add mos_eval.py — Mean Opinion Score for TTS output
+# TODO Phase 4: Add language_detect_eval.py — accuracy on African language detection

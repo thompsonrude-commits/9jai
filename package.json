@@ -9,7 +9,16 @@
     "preview": "vite preview",
     "clean": "rimraf dist server.js",
     "lint": "tsc --noEmit",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy",
+    "test": "node scripts/run-tests.mjs",
+    "test:connectors": "node --import tsx/esm --test core/integrations/connectorPlatform.test.ts",
+    "test:security": "node --import tsx/esm --test core/security/securityPlatform.test.ts",
+    "test:operations": "node --import tsx/esm --test core/operations/operationsPlatform.test.ts",
+    "test:release": "node --import tsx/esm --test core/release/releasePlatform.test.ts",
+    "test:backend": "npm --prefix functions run test",
+    "test:all": "npm test && npm run test:backend",
+    "validate": "node scripts/validate.mjs",
+    "validate:ci": "node scripts/validate.mjs --ci"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -30,6 +39,7 @@
     "franc": "^6.1.0",
     "html2canvas": "^1.4.1",
     "i18next": "^23.0.0",
+    "kokoro-js": "^1.2.1",
     "langchain": "^1.4.2",
     "langs": "^2.0.0",
     "leaflet": "^1.9.4",
@@ -59,6 +69,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^4.1.10"
   }
 }

@@ -374,7 +374,7 @@ export default function LanguageExplorer({
         <AppHeader />
         {isEdo ? (
           // Edo uses its original dedicated assistant (Ọmwan / 9jai)
-          <EdoAssistant user={currentUser} isAdmin={!!isAdmin} languageName={languageName} />
+          <EdoAssistant user={currentUser} isAdmin={!!isAdmin} />
         ) : (
           <LanguageAssistant
             user={currentUser}
@@ -795,25 +795,6 @@ export default function LanguageExplorer({
                   </div>
                 </div>
               </div>
-            </motion.div>
-        )}
-
-        {activeSection === 'assistant' && (
-            <motion.div
-              key="assistant"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="h-[calc(100vh-280px)] min-h-[500px]"
-            >
-              <LanguageAssistant
-                user={currentUser}
-                isAdmin={!!isAdmin}
-                languageName={languageName}
-                languageId={langMeta.id}
-                nativeName={langMeta.nativeName}
-                onNavigate={(section) => setActiveSection(section)}
-              />
             </motion.div>
         )}
 

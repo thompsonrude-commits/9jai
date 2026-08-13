@@ -5,35 +5,38 @@
  * API keys are NEVER in the client bundle — they live in Cloud Functions secrets.
  *
  * Endpoints hit:
- *   /api/ai/chat       — multi-provider chat
- *   /api/ai/stream     — streaming chat (SSE)
- *   /api/ai/image      — image generation
- *   /api/ai/transcribe — audio transcription
- *   /api/ai/search     — web search
- *   /api/ai/health     — provider health
+ *   /api/v1/chat                — multi-provider chat
+ *   /api/v1/stream              — streaming chat (SSE)
+ *   /api/v1/image/generate      — image generation
+ *   /api/v1/speech/transcribe   — audio transcription
+ *   /api/v1/search              — web search
+ *   /api/v1/health              — provider health
  *
  * Falls back to direct Groq/OpenRouter calls if functions are unavailable
  * (dev mode or cold start) so the app never breaks.
  */
 
 import { auth } from './firebase';
+import { generateImageWithFallback } from './imageService';
+import { DEFAULT_MAX_INLINE_IMAGE_BYTES, normalizeImageForVision } from './imageNormalization';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
 // In production: relative path (same domain via hosting rewrites)
 // In dev: point to emulator or direct providers
-const IS_DEV = import.meta.env.DEV;
-const FUNCTIONS_BASE = IS_DEV
-  ? 'http://127.0.0.1:5001/jatalk-1274b/us-central1'  // emulator
-  : '/api';                                              // production (hosting rewrite)
+const IS_DEV = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.DEV === true;
+// Always use the local dev proxy path so requests go through Vite's /api proxy.
+// This prevents browser CORS issues when the emulator is running on a different port.
+const FUNCTIONS_BASE = '/api/v1';
 
 const API = {
-  chat:       `${FUNCTIONS_BASE}/ai/chat`,
-  stream:     `${FUNCTIONS_BASE}/ai/stream`,
-  image:      `${FUNCTIONS_BASE}/ai/image`,
-  transcribe: `${FUNCTIONS_BASE}/ai/transcribe`,
-  search:     `${FUNCTIONS_BASE}/ai/search`,
-  health:     `${FUNCTIONS_BASE}/ai/health`,
+  chat:       `${FUNCTIONS_BASE}/chat`,
+  stream:     `${FUNCTIONS_BASE}/stream`,
+  image:      `${FUNCTIONS_BASE}/image/generate`,
+  video:      `${FUNCTIONS_BASE}/video/process`,
+  transcribe: `${FUNCTIONS_BASE}/speech/transcribe`,
+  search:     `${FUNCTIONS_BASE}/search`,
+  health:     `${FUNCTIONS_BASE}/health`,
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -118,29 +121,17 @@ async function checkFunctionsAvailable(): Promise<boolean> {
   // Once we've confirmed it works, always return true
   if (_functionsConfirmedWorking) return true;
 
-  // In production, always assume available (hosting rewrites are configured)
-  if (!IS_DEV) {
-    _functionsConfirmedWorking = true;
-    return true;
-  }
-
-  // In dev, do a quick health check
-  try {
-    const res = await fetch(API.health, { method: 'GET', signal: AbortSignal.timeout(5000) });
-    if (res.ok) {
-      _functionsConfirmedWorking = true;
-      return true;
-    }
-  } catch { /* emulator not running */ }
-
-  return false;
+  // ALWAYS assume functions are available in production
+  // The hosting rewrites are configured, so functions WILL be reached
+  _functionsConfirmedWorking = true;
+  return true;
 }
 
 // ── Direct fallback (when functions are unavailable) ──────────────────────
 // Uses Groq directly from client — only as emergency fallback
 
 async function directFallbackChat(messages: ProxyChatMessage[], temperature = 0.7): Promise<ProxyChatResult> {
-  const groqKey = import.meta.env.VITE_GROQ_KEY ?? (window as any).__GROQ_KEY;
+  const groqKey = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env?.VITE_GROQ_KEY ?? (window as Window & { __GROQ_KEY?: string }).__GROQ_KEY;
   if (!groqKey) {
     return {
       text: 'AI service temporarily unavailable. Please try again shortly.',
@@ -186,11 +177,6 @@ async function directFallbackChat(messages: ProxyChatMessage[], temperature = 0.
 
 export async function proxyChat(options: ProxyChatOptions): Promise<ProxyChatResult> {
   const headers = await getHeaders(options.sessionId);
-  const available = await checkFunctionsAvailable();
-
-  if (!available) {
-    return directFallbackChat(options.messages, options.temperature);
-  }
 
   try {
     const res = await fetch(API.chat, {
@@ -216,8 +202,8 @@ export async function proxyChat(options: ProxyChatOptions): Promise<ProxyChatRes
     if (!data.text) throw new Error('Empty response from proxy');
     return data;
   } catch (err: any) {
-    console.warn('[AIProxy] proxyChat failed, using direct fallback:', err.message);
-    return directFallbackChat(options.messages, options.temperature);
+    console.error('[AIProxy] proxyChat failed:', err.message);
+    throw err; // Don't fallback, throw the error
   }
 }
 
@@ -333,13 +319,25 @@ export async function proxyImage(prompt: string, preferredProviders?: string[]):
 
     if (res.ok) {
       const data = await res.json() as any;
-      if (data.imageUrl) return data;
+      const payload = data?.data ?? data;
+      if (payload?.imageUrl || payload?.imageBase64) return payload;
     }
   } catch (err: any) {
     console.warn('[AIProxy] Image proxy failed:', err.message);
   }
 
-  // Fallback: Pollinations direct (always works, no key needed)
+  try {
+    const imageUrl = await generateImageWithFallback(prompt);
+    return {
+      imageUrl,
+      provider: 'fallback-chain',
+      model: 'multi-provider-fallback',
+      latencyMs: 0,
+    };
+  } catch (err: any) {
+    console.warn('[AIProxy] Fallback image chain failed:', err?.message ?? err);
+  }
+
   const seed = Math.floor(Math.random() * 999999);
   const enhanced = `${prompt}, high quality, detailed, realistic, professional, 4k`;
   const encoded = encodeURIComponent(enhanced);
@@ -349,6 +347,61 @@ export async function proxyImage(prompt: string, preferredProviders?: string[]):
     model: 'pollinations-flux',
     latencyMs: 0,
   };
+}
+
+// ── Main proxy: video generation ────────────────────────────────────────
+
+export async function proxyVideo(prompt: string, imageDataUrl?: string): Promise<{
+  videoUrl: string;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  jobId?: string;
+  status?: string;
+}> {
+  const headers = await getHeaders();
+
+  try {
+    const res = await fetch(API.video, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ task: 'video', prompt, imageDataUrl }),
+      signal: AbortSignal.timeout(120000), // 2 minutes for video generation
+    });
+
+    if (res.ok) {
+      const data = await res.json() as any;
+      const payload = data?.data ?? data;
+      if (payload?.videoUrl) return payload;
+      if (payload?.jobId) {
+        const deadline = Date.now() + 10 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          const statusRes = await fetch(`${FUNCTIONS_BASE}/video/status/${encodeURIComponent(payload.jobId)}`, {
+            method: 'GET',
+            headers,
+            signal: AbortSignal.timeout(30000),
+          });
+          const statusData = await statusRes.json() as any;
+          const statusPayload = statusData?.data ?? statusData;
+          if (statusPayload?.status === 'completed' && statusPayload?.videoUrl) return statusPayload;
+          if (statusPayload?.status === 'failed' || statusPayload?.status === 'cancelled') {
+            throw new Error(statusPayload.error || `Video job ${statusPayload.status}`);
+          }
+        }
+        throw new Error('Video generation timed out while waiting for the worker');
+      }
+      throw new Error('Video worker returned neither a job nor a video');
+    }
+    
+    // Try to get error message from response
+    const errorData = await res.json().catch(() => ({}));
+    const errorMsg = errorData?.error || errorData?.message || `Backend returned ${res.status}`;
+    throw new Error(errorMsg);
+  } catch (err: any) {
+    console.error('[AIProxy] Video proxy failed:', err.message);
+    throw err; // Pass through the actual error
+  }
 }
 
 // ── Main proxy: transcription ──────────────────────────────────────────────
@@ -384,6 +437,50 @@ export async function proxyTranscribe(
   } catch (err: any) {
     console.warn('[AIProxy] Transcribe proxy failed:', err.message);
     return '';
+  }
+}
+
+// ── Main proxy: vision / image analysis ────────────────────────────────────
+
+export async function proxyVision(
+  imageBase64: string,
+  prompt?: string
+): Promise<{ text: string; model: string }> {
+  const headers = await getHeaders();
+
+  try {
+    const normalized = await normalizeImageForVision(imageBase64, {
+      maxDimension: 1600,
+      maxBytes: DEFAULT_MAX_INLINE_IMAGE_BYTES,
+      quality: 0.82,
+    });
+
+    const res = await fetch(`${FUNCTIONS_BASE}/vision/analyze`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ imageBase64: normalized.dataUrl, prompt }),
+      signal: AbortSignal.timeout(45000),
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({})) as { error?: string; message?: string };
+      const errString = errJson?.error || errJson?.message || `${res.status}`;
+      if (res.status === 413 || /IMAGE_TOO_LARGE/i.test(errString)) {
+        throw new Error('IMAGE_TOO_LARGE');
+      }
+      throw new Error(`Vision proxy ${res.status}: ${errString.slice(0, 100)}`);
+    }
+
+    const data = await res.json() as { text: string; model: string; error?: string };
+    if (data.error && !data.text) throw new Error(data.error);
+    return { text: data.text ?? '', model: data.model ?? 'vision' };
+  } catch (err: any) {
+    const message = err?.message ?? String(err ?? 'Vision failed');
+    if (/IMAGE_TOO_LARGE/i.test(message)) {
+      throw new Error('Image is too large for direct Vision analysis. Please resize or compress the image and try again.');
+    }
+    console.warn('[AIProxy] proxyVision failed:', message);
+    throw err;
   }
 }
 

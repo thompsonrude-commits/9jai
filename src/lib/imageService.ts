@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Image Generation Service
  * Generates images using AI models
  */
@@ -56,8 +56,31 @@ function buildUltraHdPrompt(prompt: string): string {
   return `${base}, ${detailBoost.join(', ')}${africanBoost ? `, ${africanBoost}` : ''}`;
 }
 
+import { enhanceImagePrompt } from './imagePromptBuilder';
+
+export function buildFinalImagePrompt(rawPrompt: string, opts?: { location?: string }): string {
+  const enriched = rawPrompt.trim() ? `${rawPrompt.trim()}` : rawPrompt;
+  return enhanceImagePrompt(enriched);
+}
+
+export async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch('/api/v1/image/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.imageBase64 || null;
+  } catch (err) {
+    console.warn('[ImageService] fetchImageAsBase64 failed:', err);
+    return null;
+  }
+}
+
 const createPollinationsUrl = (prompt: string, seed = Math.floor(Math.random() * 999999)) => {
-  const enhanced = buildUltraHdPrompt(prompt);
+  const enhanced = buildFinalImagePrompt(prompt);
   const encoded = encodeURIComponent(enhanced);
   return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${seed}&enhance=true`;
 };
@@ -189,6 +212,7 @@ async function replicateProvider(prompt: string): Promise<{ imageUrl: string; mo
 
 export async function generateImageWithFallback(prompt: string): Promise<string> {
   const enhancedPrompt = await enhancePrompt(prompt);
+  const finalPrompt = buildFinalImagePrompt(enhancedPrompt);
   const providers = [
     pollinationsProvider,
     openRouterProvider,
@@ -199,9 +223,13 @@ export async function generateImageWithFallback(prompt: string): Promise<string>
 
   for (const provider of providers) {
     try {
-      const result = await provider(enhancedPrompt);
+      const result = await provider(finalPrompt);
       if (result?.imageUrl) {
         console.log('[ImageService] Image returned from provider:', result.model, result.imageUrl);
+        if (result.imageUrl.startsWith('http')) {
+          const proxyBase64 = await fetchImageAsBase64(result.imageUrl);
+          if (proxyBase64) return proxyBase64;
+        }
         return result.imageUrl;
       }
     } catch (err) {
@@ -417,48 +445,43 @@ async function tryFetchUnsplashImage(prompt: string): Promise<GeneratedImage | n
  * @param onStage Callback for UI holographic wave triggers
  */
 export async function generateImage(
-  prompt: string, 
+  prompt: string,
   onStage?: (stage: GenerationStage) => void
 ): Promise<GeneratedImage> {
-  
-  // 1. Semantic Analysis & Expansion
   onStage?.('analyzing');
-  await new Promise(r => setTimeout(r, 600));
-  
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   onStage?.('expanding');
   const enhancedPrompt = await enhancePrompt(prompt);
-  // Client-side quick expansion for immediate feedback if needed, 
-  // but backend handles the heavy lifting
-  
+  const finalPrompt = buildFinalImagePrompt(enhancedPrompt);
+
   onStage?.('generating_candidates');
-  
-  // 2. Multi-Candidate Loop with AI Validation
+
   let retryCount = 0;
   const MAX_RETRIES = 2;
-  
+
   while (retryCount <= MAX_RETRIES) {
     try {
-      const result = await callImageBackend(enhancedPrompt);
-      
-      // Internal Validation Check
+      const result = await callImageBackend(finalPrompt);
       if (result.imageUrl && result.imageUrl.length > 50) {
         onStage?.('refining');
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise((resolve) => setTimeout(resolve, 300));
         onStage?.('rendering');
         return { ...result, prompt };
       }
+      retryCount += 1;
     } catch (err) {
-      console.warn(`[ImageEngine] Validation failed, retrying candidate generation...`);
-      retryCount++;
+      console.warn('[ImageService] Image generation retry failed:', err);
+      retryCount += 1;
     }
   }
 
-  throw new Error("Critical rendering failure. Engine could not produce a valid candidate.");
+  throw new Error('Critical rendering failure. Engine could not produce a valid image.');
 }
 
 async function callImageBackend(prompt: string): Promise<GeneratedImage> {
   try {
-    const response = await fetch('/api/ai/image', {
+    const response = await fetch('/api/v1/image/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -468,7 +491,6 @@ async function callImageBackend(prompt: string): Promise<GeneratedImage> {
 
     if (!response.ok) {
       console.warn('[ImageService] Backend API failed:', response.status);
-      // Fallback to client-side if backend fails
       const imageUrl = await generateImageWithFallback(prompt);
       return {
         id: `img_${Date.now()}`,
@@ -479,26 +501,45 @@ async function callImageBackend(prompt: string): Promise<GeneratedImage> {
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
+    const payload = data?.data ?? data;
+    const resolvedUrl = payload.imageBase64 ?? payload.imageUrl ?? payload.directUrl;
+    let imageUrl = resolvedUrl;
+
+    if (imageUrl && imageUrl.startsWith('http')) {
+      const proxied = await fetchImageAsBase64(imageUrl);
+      if (proxied) imageUrl = proxied;
+    }
+
+    if (!imageUrl) {
+      console.warn('[ImageService] Backend returned no image URL, falling back');
+      const fallbackImageUrl = await generateImageWithFallback(prompt);
+      return {
+        id: `img_${Date.now()}`,
+        prompt,
+        imageUrl: fallbackImageUrl,
+        generatedAt: Date.now(),
+        model: 'fallback',
+      };
+    }
+
     console.log('[ImageService] Backend image generation successful');
-    
     return {
       id: `img_${Date.now()}`,
       prompt,
-      imageUrl: data.imageUrl || data.imageBase64,
+      imageUrl,
       generatedAt: Date.now(),
       model: data.provider || data.model || 'backend-generated',
     };
   } catch (err) {
     console.warn('[ImageService] Backend API error:', err);
-    // Fallback to client-side
     const imageUrl = await generateImageWithFallback(prompt);
     return {
       id: `img_${Date.now()}`,
       prompt,
       imageUrl,
       generatedAt: Date.now(),
-      model: imageUrl.includes('picsum.photos') ? 'fallback' : 'generated',
+      model: 'fallback',
     };
   }
 }

@@ -1,0 +1,126 @@
+{
+  "specId": "video-generation-activation",
+  "title": "Video Generation Activation with HuggingFace Integration",
+  "version": "1.0.0",
+  "status": "ready",
+  "created": "2026-08-10",
+  "updated": "2026-08-10",
+  "author": "Kiro AI Assistant",
+  "priority": "high",
+  "tags": [
+    "video-generation",
+    "huggingface",
+    "api-integration",
+    "cloud-functions",
+    "media-generation"
+  ],
+  "description": "Enable video generation functionality by activating the HuggingFace API integration and implementing a robust multi-provider fallback system. This spec covers secret activation, provider implementation, deployment, and comprehensive testing.",
+  "objectives": [
+    "Activate HF_TOKEN secret in Cloud Functions",
+    "Implement HuggingFace video generation provider",
+    "Add multi-provider fallback for video generation",
+    "Deploy and test video generation in production",
+    "Establish performance monitoring and baselines"
+  ],
+  "estimatedEffort": {
+    "total": "4.5 hours",
+    "breakdown": {
+      "implementation": "2 hours",
+      "testing": "1.5 hours",
+      "monitoring": "1 hour"
+    }
+  },
+  "dependencies": {
+    "internal": [
+      "Firebase Cloud Functions infrastructure",
+      "Firebase Secret Manager",
+      "Media generation engine",
+      "Provider implementations"
+    ],
+    "external": [
+      "HuggingFace API",
+      "Together AI API (fallback)",
+      "Firebase hosting"
+    ]
+  },
+  "risks": [
+    {
+      "type": "technical",
+      "description": "HuggingFace API reliability",
+      "severity": "high",
+      "mitigation": "Implement Together AI fallback"
+    },
+    {
+      "type": "cost",
+      "description": "Video generation cost overrun",
+      "severity": "high",
+      "mitigation": "Strict rate limiting and cost monitoring"
+    },
+    {
+      "type": "technical",
+      "description": "Secret configuration issues",
+      "severity": "medium",
+      "mitigation": "Test secret access in health check endpoint"
+    }
+  ],
+  "successMetrics": {
+    "videoGenerationSuccessRate": "> 80%",
+    "averageLatency": "< 3 minutes for 5-second video",
+    "errorRate": "< 20%",
+    "costPerVideo": "< $0.10"
+  },
+  "scope": {
+    "inScope": [
+      "HuggingFace video generation integration",
+      "Multi-provider fallback system",
+      "Rate limiting and cost controls",
+      "Error handling and monitoring",
+      "Health check updates",
+      "Documentation updates"
+    ],
+    "outOfScope": [
+      "Video editing capabilities",
+      "Custom resolution/format selection",
+      "Video-to-video transformation",
+      "Persistent video storage",
+      "User video gallery",
+      "Batch video generation"
+    ]
+  },
+  "testingStrategy": {
+    "unitTests": "Provider integration, secret validation",
+    "integrationTests": "End-to-end video generation flow",
+    "manualTests": "User experience, error messaging",
+    "loadTests": "Concurrent requests, rate limiting",
+    "smokeTests": "Post-deployment verification"
+  },
+  "rollbackPlan": {
+    "automatic": "Firebase maintains previous function versions",
+    "featureFlag": "VIDEO_GENERATION_ENABLED flag for quick disable",
+    "emergencyRateLimit": "Reduce rate limit from 10 to 5 per hour"
+  },
+  "relatedSpecs": [],
+  "references": [
+    {
+      "type": "documentation",
+      "title": "HuggingFace Inference API",
+      "url": "https://huggingface.co/docs/api-inference/"
+    },
+    {
+      "type": "documentation",
+      "title": "Firebase Secret Manager",
+      "url": "https://firebase.google.com/docs/functions/config-env#secret-manager"
+    },
+    {
+      "type": "internal",
+      "title": "Image Generation Fix Summary",
+      "path": "FIX_SUMMARY.md"
+    }
+  ],
+  "notes": [
+    "HuggingFace API key already configured as HF_TOKEN secret",
+    "Image generation already working as reference implementation",
+    "No breaking changes to existing APIs required",
+    "Frontend already has video display components"
+  ]
+}

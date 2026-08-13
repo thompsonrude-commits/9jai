@@ -4,7 +4,7 @@
  * using advanced pattern recognition and constraint satisfaction
  */
 
-import { groqChatStream } from './ai';
+import { unifiedChatStream } from './ai';
 
 /**
  * AI Reliability Framework: fallbacks and retries
@@ -272,7 +272,7 @@ Generate the lyrics now:`;
   let attempts = 0;
   while (attempts < MAX_RETRIES) {
     try {
-      for await (const chunk of groqChatStream(messages, 0.8)) {
+      for await (const chunk of unifiedChatStream(messages, 0.8)) {
         yield chunk;
       }
       return; // Successful stream
@@ -320,7 +320,7 @@ Generate the poem now:`;
     { role: 'user' as const, content: userPrompt },
   ];
 
-  for await (const chunk of groqChatStream(messages, 0.8)) {
+  for await (const chunk of unifiedChatStream(messages, 0.8)) {
     yield chunk;
   }
 }
@@ -357,7 +357,7 @@ Generate the story now:`;
     { role: 'user' as const, content: userPrompt },
   ];
 
-  for await (const chunk of groqChatStream(messages, 0.8)) {
+  for await (const chunk of unifiedChatStream(messages, 0.8)) {
     yield chunk;
   }
 }
@@ -395,7 +395,7 @@ Generate a comprehensive Suno prompt now:`;
     { role: 'user' as const, content: userPrompt },
   ];
 
-  for await (const chunk of groqChatStream(messages, 0.8)) {
+  for await (const chunk of unifiedChatStream(messages, 0.8)) {
     yield chunk;
   }
 }

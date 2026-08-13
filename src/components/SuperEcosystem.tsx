@@ -12,8 +12,9 @@ import {
   MessageSquare, Search, BookOpen, Wand2, BarChart3, Library
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { groqChatStream, transcribeWithWhisper } from '../lib/ai';
-import { generateImageWithFallback } from '../lib/imageService';import { processFile, buildFileContext, getFileIcon, validateFile, ProcessedFile } from '../lib/multimodalProcessor';
+import { unifiedChatStream, transcribeWithWhisper } from '../lib/ai';
+import { generateImageWithFallback } from '../lib/imageService';
+import { initializePlatform } from '../lib/platform';import { processFile, buildFileContext, getFileIcon, validateFile, ProcessedFile } from '../lib/multimodalProcessor';
 import { detectAgentTask, runAgent, AgentTask, AgentType } from '../lib/aiAgents';
 import { loadUserMemory, saveUserMemory, buildMemoryContext, extractFactsFromMessage, extractTopics, updateMemoryFact } from '../lib/memorySystem';
 import { saveFeedback, buildFeedbackContext, getRatingEmoji } from '../lib/feedbackSystem';
@@ -46,7 +47,7 @@ interface SuperEcosystemProps {
 
 // ── Agent type labels ──────────────────────────────────────────────────────
 
-const AGENT_LABELS: Record<AgentType, { icon: string; label: string; color: string }> = {
+const AGENT_LABELS: Record<AgentType | 'swarm-coordinator' | 'cultural-expert', { icon: string; label: string; color: string }> = {
   researcher: { icon: '🔬', label: 'Research Agent', color: 'from-blue-500 to-cyan-500' },
   coder: { icon: '💻', label: 'Code Agent', color: 'from-purple-500 to-pink-500' },
   translator: { icon: '🌍', label: 'Translation Agent', color: 'from-green-500 to-emerald-500' },
@@ -55,14 +56,16 @@ const AGENT_LABELS: Record<AgentType, { icon: string; label: string; color: stri
   'content-creator': { icon: '✍️', label: 'Content Agent', color: 'from-pink-500 to-rose-500' },
   planner: { icon: '🗺️', label: 'Planning Agent', color: 'from-teal-500 to-green-500' },
   analyst: { icon: '📊', label: 'Analysis Agent', color: 'from-orange-500 to-red-500' },
+  'swarm-coordinator': { icon: '🧠', label: 'Swarm Coordinator', color: 'from-slate-500 to-slate-700' },
+  'cultural-expert': { icon: '🌍', label: 'Cultural Expert', color: 'from-amber-500 to-orange-500' },
 };
 
 // ── System prompt builder ──────────────────────────────────────────────────
 
 function buildSuperSystemPrompt(memoryContext: string, feedbackContext: string): string {
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const timeStr = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateStr = now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' });
+  const timeStr = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
 
   return `You are 9jai SUPER — the most advanced African AI super ecosystem on Earth.
 You combine the intelligence of ChatGPT, Gemini, Claude, and Perplexity into one powerful system.
@@ -378,6 +381,13 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
   const historyRef = useRef<{ role: 'system' | 'user' | 'assistant'; content: string }[]>([]);
   const sessionId = useRef(`session_${Date.now()}`);
 
+  // ── Initialize platform services on mount ─────────────────────────────────
+  useEffect(() => {
+    initializePlatform().catch(err => {
+      console.warn('[SuperEcosystem] Platform initialization warning:', err);
+    });
+  }, []);
+
   // ── Load memory on mount ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.uid) return;
@@ -527,11 +537,35 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
     // Build file context
     const fileContext = buildFileContext(attachedFiles);
 
-    // Check for image generation request
+    // Check for image generation request with smarter detection
     const lower = userText.toLowerCase();
-    const isImageReq = lower.includes('generate image') || lower.includes('create image') ||
-      lower.includes('draw') || lower.includes('paint') || lower.includes('picture of') ||
-      lower.includes('image of') || lower.includes('generate a') && lower.includes('image');
+    
+    // Strong image triggers (explicit requests)
+    const explicitImageRequest = 
+      lower.includes('generate image') || lower.includes('create image') ||
+      lower.includes('make image') || lower.includes('draw image') ||
+      lower.includes('picture of') || lower.includes('image of') ||
+      lower.includes('photo of') || lower.includes('draw me') ||
+      lower.includes('paint me') || lower.includes('show me a picture') ||
+      (lower.includes('generate') && lower.includes('image')) ||
+      (lower.includes('create') && lower.includes('image'));
+    
+    // Implicit visual requests (describing something visual)
+    const visualDescriptionPatterns = [
+      /^(a|an)\s+(beautiful|stunning|majestic|colorful|vibrant|realistic|detailed)\s+/i,
+      /^(draw|paint|sketch|illustrate|design|render)\s+/i,
+      /(logo|poster|banner|artwork|illustration|graphic)\s+(for|of|with)/i,
+      /\b(skyline|sunset|sunrise|landscape|scenery|portrait)\b/i,
+    ];
+    const implicitVisualRequest = visualDescriptionPatterns.some(pattern => pattern.test(userText));
+    
+    // Short visual noun phrases (e.g., "a lion", "an eagle", "the sunset")
+    const isShortVisualPhrase = userText.trim().split(' ').length <= 6 &&
+      /^(a|an|the)\s+\w+/i.test(userText) &&
+      !/(what|how|why|when|where|who|is|are|was|were|do|does|did|can|could|should|would)\b/i.test(lower) &&
+      !/(report|document|file|list|table|code|script|program|function)\b/i.test(lower);
+    
+    const isImageReq = explicitImageRequest || implicitVisualRequest || isShortVisualPhrase;
 
     if (isImageReq) {
       const prompt = userText
@@ -565,6 +599,72 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
         setMessages(prev => prev.map(m => m.id === aiMsgId ? {
           ...m,
           content: '❌ Image generation failed. Try again.',
+          isStreaming: false,
+        } : m));
+      }
+      setIsBusy(false);
+      return;
+    }
+
+    // Check for video generation request  
+    const explicitVideoRequest = 
+      lower.includes('generate video') || lower.includes('create video') ||
+      lower.includes('make video') || lower.includes('video of') ||
+      lower.includes('animate') || lower.includes('animation of') ||
+      (lower.includes('generate') && lower.includes('video')) ||
+      (lower.includes('create') && lower.includes('video')) ||
+      (lower.includes('make') && lower.includes('video'));
+    
+    const isVideoReq = explicitVideoRequest;
+
+    if (isVideoReq) {
+      const prompt = userText
+        .replace(/generate\s+(a\s+)?video\s+(of\s+)?/gi, '')
+        .replace(/create\s+(a\s+)?video\s+(of\s+)?/gi, '')
+        .replace(/make\s+(a\s+)?video\s+(of\s+)?/gi, '')
+        .replace(/video\s+of\s+/gi, '')
+        .trim() || userText;
+
+      const aiMsgId = `msg_${Date.now() + 1}`;
+      setMessages(prev => [...prev, {
+        id: aiMsgId,
+        role: 'assistant',
+        content: `🎬 Generating video: "${prompt}"... (This may take 30-60 seconds)`,
+        timestamp: Date.now(),
+        isNew: true,
+        isStreaming: true,
+      }]);
+
+      try {
+        const response = await fetch('/api/v1/video/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Video API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        const videoUrl = data?.data?.videoUrl || data?.videoUrl;
+
+        if (videoUrl) {
+          setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+            ...m,
+            content: `✅ Video generated successfully!`,
+            imageUrl: videoUrl, // Reusing imageUrl for video
+            imagePrompt: prompt,
+            isStreaming: false,
+          } : m));
+        } else {
+          throw new Error('No video URL returned');
+        }
+      } catch (err: any) {
+        console.error('[Video Generation] Error:', err);
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+          ...m,
+          content: `⚠️ Video generation is currently unavailable. The system is working on certifying video providers. Try image generation instead!`,
           isStreaming: false,
         } : m));
       }
@@ -643,7 +743,7 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
     const aiMsgId = `msg_${Date.now() + 1}`;
 
     try {
-      for await (const chunk of groqChatStream(historyRef.current, 0.7)) {
+      for await (const chunk of unifiedChatStream(historyRef.current, 0.7)) {
         fullReply += chunk;
         setStreamingText(fullReply);
         scrollToBottom();

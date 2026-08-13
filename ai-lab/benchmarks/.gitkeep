@@ -1,0 +1,6 @@
+# benchmarks/
+# Benchmark suites comparing providers and models on African language tasks.
+#
+# TODO Phase 3: Add provider_benchmark.json — latency & quality comparisons
+# TODO Phase 4: Add edo_translation_benchmark.json — Edo ↔ English baselines
+# TODO Phase 5: Add cost_benchmark.json — cost per 1k tokens across providers

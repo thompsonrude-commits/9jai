@@ -1,0 +1,9 @@
+# research/
+# Research notes, literature reviews, and findings that inform platform design.
+#
+# Suggested documents:
+#   - african_nlp_landscape.md   — overview of existing African NLP resources
+#   - edo_language_notes.md      — linguistic notes on Edo grammar and tones
+#   - low_resource_nlp.md        — techniques for low-resource language modelling
+#
+# TODO: Document findings from Masakhane and AfricaNLP communities

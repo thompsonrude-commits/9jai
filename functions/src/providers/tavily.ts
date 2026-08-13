@@ -4,6 +4,7 @@
  */
 
 import { defineSecret } from 'firebase-functions/params';
+import { getSecretValue } from './secretHelpers';
 
 export const TAVILY_KEY = defineSecret('TAVILY_KEY');
 
@@ -27,7 +28,7 @@ export async function tavilySearch(
   maxResults = 6,
   searchDepth: 'basic' | 'advanced' = 'advanced'
 ): Promise<SearchResponse> {
-  const key = TAVILY_KEY.value();
+  const key = getSecretValue('TAVILY_KEY', TAVILY_KEY);
   if (!key) throw new Error('TAVILY_KEY secret not configured');
 
   const res = await fetch('https://api.tavily.com/search', {
@@ -65,7 +66,7 @@ export async function tavilySearch(
 // ── URL content extraction ─────────────────────────────────────────────────
 
 export async function tavilyExtract(url: string): Promise<string> {
-  const key = TAVILY_KEY.value();
+  const key = getSecretValue('TAVILY_KEY', TAVILY_KEY);
   if (!key) throw new Error('TAVILY_KEY secret not configured');
 
   const res = await fetch('https://api.tavily.com/extract', {

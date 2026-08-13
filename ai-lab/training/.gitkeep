@@ -1,0 +1,6 @@
+# training/
+# Fine-tuning scripts, LoRA configs, and training pipelines.
+#
+# TODO Phase 2: Add edo_finetune.py — fine-tune base LLM on Edo corpus
+# TODO Phase 3: Add speech_tts_train.py — train Edo TTS voice model
+# TODO Phase 4: Add nmt_train.py — neural machine translation Edo ↔ English
