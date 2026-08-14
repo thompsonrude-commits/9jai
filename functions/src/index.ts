@@ -1211,6 +1211,111 @@ export const aiFetchImage = onRequest(
   }
 );
 
+// ── /ai/visual-orchestrator — Visual Orchestrator (v1) ─────────────────────
+
+export const v1VisualOrchestrator = onRequest(
+  { secrets: ALL_SECRETS, cors: false, timeoutSeconds: 300, memory: '512MiB' },
+  async (req, res) => {
+    if (setCorsHeaders(req, res)) return;
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const { prompt, messages, imageBase64, imageUrl, preferredProviders } = req.body as any;
+    if (!prompt && !messages && !imageBase64 && !imageUrl) {
+      res.status(400).json({ error: 'prompt, messages, or image required' });
+      return;
+    }
+
+    // Lightweight intent detection (heuristic) — upgrade to ML-based intent detection later
+    const text = prompt ?? (Array.isArray(messages) ? messages.map((m: any) => m.content || '').join(' ') : '') ?? '';
+    const lower = String(text).toLowerCase();
+
+    const visualKeywords = [
+      'diagram', 'image', 'show me', 'illustration', 'explain with', 'diagram of', 'labeled', 'flyer', 'poster', 'infographic', 'chart', 'graph', 'map', 'timeline', 'generate image', 'create a'
+    ];
+
+    let visualRequired = visualKeywords.some((k) => lower.includes(k));
+    if (imageBase64 || imageUrl) visualRequired = true;
+
+    // Visual type classification (simple rules)
+    let visualType = 'illustration';
+    if (/diagram|labeled|schematic|anatomy|flowchart|process|mechanical|engineering|electrical|circuit|graph|plot|chart|map|timeline/.test(lower)) visualType = 'diagram';
+    else if (/flyer|poster|advert|advertisement|banner|menu|certificate|letterhead|business card/.test(lower)) visualType = 'design';
+    else if (/photo|photograph|realistic|3d|render|portrait|landscape/.test(lower)) visualType = 'photograph';
+    else if (/infographic|comparison|timeline|chart|graph|plot/.test(lower)) visualType = 'infographic';
+
+    let imageUrlOut: string | null = null;
+    let imageDataUrl: string | null = null;
+    let providerOut: string | null = null;
+    let modelOut: string | null = null;
+
+    try {
+      // If a visual is required and no user-supplied image was provided, ask the engine to generate one
+      if (visualRequired && !imageBase64 && !imageUrl) {
+        const genPrompt = prompt || text || `Generate an educational ${visualType}`;
+        const result = await generateMedia({ kind: 'image', prompt: genPrompt, preferredProviders });
+        providerOut = result.provider as string;
+        modelOut = result.model || null;
+
+        if (result.mediaUrl) {
+          imageUrlOut = result.mediaUrl;
+        }
+
+        if (result.imageBase64 && !imageUrlOut) {
+          const base64 = result.imageBase64.replace(/^data:[^;]+;base64,/, '');
+          imageDataUrl = `data:image/png;base64,${base64}`;
+          try {
+            const bucket = admin.storage().bucket();
+            const filename = `visuals/${generateResourceId('visual')}.png`;
+            const file = bucket.file(filename);
+            await file.save(Buffer.from(base64, 'base64'), { contentType: 'image/png' });
+            imageUrlOut = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+          } catch (uploadErr: any) {
+            console.warn('[v1VisualOrchestrator] Storage upload failed:', uploadErr?.message ?? uploadErr);
+            imageUrlOut = imageDataUrl;
+          }
+        }
+      } else if (imageBase64) {
+        const base64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+        imageDataUrl = `data:image/png;base64,${base64}`;
+        try {
+          const bucket = admin.storage().bucket();
+          const filename = `uploads/${generateResourceId('upload')}.png`;
+          const file = bucket.file(filename);
+          await file.save(Buffer.from(base64, 'base64'), { contentType: 'image/png' });
+          imageUrlOut = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+        } catch (uploadErr: any) {
+          console.warn('[v1VisualOrchestrator] Storage upload failed:', uploadErr?.message ?? uploadErr);
+          imageUrlOut = imageDataUrl;
+        }
+      } else if (imageUrl) {
+        imageUrlOut = imageUrl;
+      }
+    } catch (err: any) {
+      console.error('[v1VisualOrchestrator] Generation/upload failed:', err?.message ?? err);
+    }
+
+    const metadata = {
+      text: prompt || text || '',
+      imageUrl: imageUrlOut,
+      dataUrl: imageDataUrl,
+      imageType: visualType,
+      title: prompt ? String(prompt).slice(0, 120) : 'Generated Visual',
+      labels: [] as Array<any>,
+      steps: [] as Array<any>,
+      sourceType: imageBase64 ? 'uploaded' : (imageUrlOut ? 'generated' : null),
+      provider: providerOut,
+      model: modelOut,
+      generatedAt: new Date().toISOString(),
+    };
+
+    res.status(200).json({ ok: true, visual: metadata });
+  }
+);
+
 // ── /ai/vision — Image + document analysis via multimodal AI ─────────────
 
 function parseAndNormalizeImagePayload(raw: string) {
