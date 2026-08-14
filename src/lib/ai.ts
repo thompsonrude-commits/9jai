@@ -3,7 +3,7 @@
  * External providers are optional accelerators behind the proxy, not the app brain.
  */
 
-import { proxyChat as _proxyChat, proxyImage } from './aiProxy';
+import { proxyChat as _proxyChat, proxyImage, proxyVisualOrchestrator } from './aiProxy';
 import { getLocalFallbackResponse } from './fallbackResponses';
 import { knowledgeEngine } from './platform/knowledgeEngine';
 import { trackChatRequest } from './platform/analytics';
@@ -127,14 +127,16 @@ export async function* unifiedChatStream(messages: ChatMessageLike[], temperatur
       const lastUserText = lastUserMessage?.content;
       if (visualExplanationRequired(lastUserText)) {
         const visualPrompt = `Create a clear labeled diagram or educational visual for: ${lastUserText}. Include labels for major parts and a concise caption describing each part.`;
-        const img = await proxyImage(visualPrompt);
-        if (img && img.imageUrl) {
-          // Append a short user-level attachment note so the chat model can reference the image
+        const vc = await proxyVisualOrchestrator({ prompt: visualPrompt, selectedLanguage: conversationLanguage, conversationLanguage });
+        if (vc && vc.ok && vc.visual && (vc.visual.imageUrl || vc.visual.dataUrl)) {
+          const imageUrl = vc.visual.imageUrl || vc.visual.dataUrl;
+          // Attach the generated image as an assistant message so the chat model treats it as available context
           messagesForChat = [
             ...boundedMessages,
-            // Attach the generated image as an assistant message so the chat model treats it as available context
-            { role: 'assistant' as const, content: `__IMAGE__${img.imageUrl}` },
-            { role: 'system' as const, content: `An educational diagram was generated and attached. The assistant should reference and explain the diagram, label important parts, and include step-by-step explanations where appropriate.` },
+            { role: 'assistant' as const, content: `__IMAGE__${imageUrl}` },
+            // Also attach structured visual metadata the model can consume
+            { role: 'assistant' as const, content: `__VISUAL_META__${JSON.stringify(vc.visual)}` },
+            { role: 'system' as const, content: `An educational diagram was generated, attached, and metadata is available. The assistant must reference the visual explicitly, describe labeled parts, use numbered labels (Label 1, Label 2), and avoid saying it cannot display images.` },
           ];
         }
       }

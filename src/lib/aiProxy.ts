@@ -181,7 +181,38 @@ export async function proxyTranscribe(fileName: string, contentType?: string): P
   return { text: 'Local transcription is not available in this browser session.', provider: 'local', model: '9jai-local', latencyMs: 0 };
 }
 
+export async function proxyVisualOrchestrator(options: { prompt?: string; messages?: any[]; imageBase64?: string; imageUrl?: string; preferredProviders?: string[]; selectedLanguage?: string; responseLanguage?: string; conversationLanguage?: string; }): Promise<{ ok: boolean; visual?: any; error?: string }> {
+  try {
+    const headers = await getHeaders();
+    const resp = await fetch('/api/v1/visual-orchestrator', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt: options.prompt,
+        messages: options.messages,
+        imageBase64: options.imageBase64,
+        imageUrl: options.imageUrl,
+        preferredProviders: options.preferredProviders,
+        selectedLanguage: options.selectedLanguage,
+        responseLanguage: options.responseLanguage,
+        conversationLanguage: options.conversationLanguage,
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`visual-orchestrator ${resp.status}: ${text.slice(0, 200)}`);
+    }
+    const data = await resp.json();
+    return { ok: true, visual: data.visual };
+  } catch (err: any) {
+    console.warn('[AIProxy] proxyVisualOrchestrator failed:', err?.message || err);
+    return { ok: false, error: err?.message || 'visual orchestrator failure' };
+  }
+}
+
 export async function proxyVision(imageDataUrl: string, prompt?: string): Promise<{ text: string; description: string; objects: string[]; provider: string; model: string; latencyMs: number }> {
+
   // Try the production vision endpoint first (performs OCR, object detection, document analysis)
   try {
     const headers = await getHeaders();

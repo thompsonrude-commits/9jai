@@ -36,7 +36,7 @@ import {
   updateUserBehavior,
   learnLanguagePhrase,
 } from '../lib/adaptiveLearning';
-import { proxyVision } from '../lib/aiProxy';
+import { proxyVision, proxyVisualOrchestrator } from '../lib/aiProxy';
 import VisionEngine from './VisionEngine';
 import { db } from '../lib/firebase';
 import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -605,33 +605,93 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
     }
     const displayMessage = userMessage || `📎 ${filePreviews.map(f => f.name).join(', ')}`;
     if (userMessage && isImageRequest(userMessage)) {
-      // Add the user message and insert an image/video/map placeholder into the chat
+      // Add the user message
       setMessages(prev => [...prev, { role: 'user', content: displayMessage, timestamp: Date.now() }]);
       const prompt = extractImagePrompt(userMessage);
       const isVideoRequest = /\b(video|animation|animate|movie|clip|motion|moving)\b/i.test(userMessage);
       setLogoState(isVideoRequest ? 'video' : 'image');
+
+      // Call the Visual Orchestrator to generate or register a visual and receive structured metadata
+      try {
+        const vc = await proxyVisualOrchestrator({ prompt, selectedLanguage: selectedLanguage, responseLanguage: selectedLanguage, conversationLanguage: selectedLanguage });
+        if (vc && vc.ok && vc.visual) {
+          const visual = vc.visual;
+          const imageUrl = visual.imageUrl || visual.dataUrl || '';
+
+          const contentPayload = imageUrl ? `__IMAGE__${imageUrl}` : `__GENERATE__${prompt}`;
+
+          // Render the image message immediately with metadata attached
+          setMessages(prev => [...prev, { role: 'model', content: contentPayload, timestamp: Date.now(), imagePrompt: prompt, imgType: visual.imageType || 'ai', imgLabel: visual.title || prompt, isNew: true }]);
+
+          // Push user message into history
+          historyRef.current.push({ role: 'user', content: userMessage });
+
+          // Attach the visual artifact and structured metadata to conversation history
+          historyRef.current.push({ role: 'assistant', content: contentPayload });
+          historyRef.current.push({ role: 'assistant', content: `__VISUAL_META__${JSON.stringify(visual)}` });
+
+          // Add a system hint to force the model to reference the visual
+          historyRef.current.push({ role: 'system', content: 'A visual artifact and structured metadata are attached. Reference the visual explicitly, describe labeled parts using numbered labels (Label 1, Label 2), and provide step-by-step explanation when appropriate. Do not state you cannot display images.' });
+
+          // If user asked for an explanation, stream the explanation now (chat model will see the visual metadata)
+          const explanationTrigger = /\b(explain|teach|describe|how|step by step|show me how|show me|demonstrate|explain the|explain this)\b/i;
+          const visualTrigger = /\b(image|diagram|visual|picture|illustration|chart|graph)\b/i;
+          const needsExplanation = explanationTrigger.test(userMessage) && visualTrigger.test(userMessage);
+
+          if (needsExplanation) {
+            setIsStreaming(true);
+            setStreamingContent('');
+            setIsBusy(true);
+            try {
+              let accumulated = '';
+              for await (const chunk of unifiedChatStream([...historyRef.current], 0.7)) {
+                accumulated += chunk;
+                setStreamingContent(sanitizeDisplayText(accumulated));
+                scrollToBottom();
+              }
+              const finalText = sanitizeDisplayText(accumulated || '');
+              setMessages(prev => [...prev, { role: 'model', content: finalText, timestamp: Date.now(), isNew: true }]);
+              historyRef.current.push({ role: 'assistant', content: finalText });
+              lastAIResponseRef.current = finalText;
+            } catch (err) {
+              const language = getConversationLanguageContext() || selectedLanguage || 'pcm';
+              const fallback = getLocalFallbackResponse(userMessage, language);
+              setMessages(prev => [...prev, { role: 'model', content: fallback, timestamp: Date.now(), isNew: true }]);
+              historyRef.current.push({ role: 'assistant', content: fallback });
+            } finally {
+              setIsStreaming(false);
+              setIsBusy(false);
+              setLogoState('success');
+              setTimeout(() => setLogoState('idle'), 2000);
+              setTimeout(scrollToBottom, 100);
+            }
+            return;
+          }
+
+          // No explanation requested — finish with success
+          historyRef.current.push({ role: 'assistant', content: `Generated visual for "${prompt}".` });
+          setIsBusy(false); setLogoState('success'); setTimeout(() => setLogoState('idle'), 2000); setTimeout(scrollToBottom, 100);
+          return;
+        }
+      } catch (e) {
+        console.warn('[GeneralAssistant] Visual orchestrator failed:', e);
+      }
+
+      // Fallback: use existing placeholder flow if orchestrator fails
       const result = isVideoRequest ? { type: 'video' as const, url: `__VIDEO__${prompt}`, label: `🎬 ${prompt}` } : buildImageResult(prompt);
       const contentPayload = (result.url && result.url.startsWith('__')) ? result.url : `__IMAGE__${result.url}`;
 
       setMessages(prev => [...prev, { role: 'model', content: contentPayload, timestamp: Date.now(), imagePrompt: prompt, imgType: result.type, imgLabel: result.label, mapPlace: result.mapPlace, isNigeriaMap: result.isNigeriaMap, mapFrom: result.mapFrom, mapTo: result.mapTo, mapMode: result.mapMode, isNew: true }]);
-      // Push user message into history
       historyRef.current.push({ role: 'user', content: userMessage });
-
-      // ALSO attach the generated image to the conversation history as an assistant-level artifact
-      // so the chat model receives a compact reference it can use when producing explanations.
-      // Use a clear sentinel: __IMAGE__<url> or __GENERATE__<prompt> so the orchestrator recognizes it.
       const imageHistoryEntry = contentPayload.startsWith('__') ? contentPayload : `__IMAGE__${contentPayload}`;
       historyRef.current.push({ role: 'assistant', content: imageHistoryEntry });
-      // Add a system hint telling the model the visual exists and should be referenced in explanations.
       historyRef.current.push({ role: 'system', content: 'A generated visual/diagram is attached and available. When responding, reference the visual explicitly: describe labeled parts, use numbered labels when helpful (e.g., "Label 1"), and avoid saying you cannot display images. Use the attached visual URL/reference to ground your explanation.' });
 
-      // Determine if the user asked for an explanation WITH the image/diagram
       const explanationTrigger = /\b(explain|teach|describe|how|step by step|show me how|show me|demonstrate|explain the|explain this)\b/i;
       const visualTrigger = /\b(image|diagram|visual|picture|illustration|chart|graph)\b/i;
       const needsExplanation = explanationTrigger.test(userMessage) && visualTrigger.test(userMessage);
 
       if (needsExplanation) {
-        // Stream the assistant explanation while the image is generated in the ImageBubble component
         setIsStreaming(true);
         setStreamingContent('');
         setIsBusy(true);
@@ -662,7 +722,6 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
         return;
       }
 
-      // If no explanation requested, just return (image/video/map placeholder will render)
       historyRef.current.push({ role: 'assistant', content: `Generated ${result.type} of "${prompt}" for you!` });
       setIsBusy(false); setLogoState('success'); setTimeout(() => setLogoState('idle'), 2000); setTimeout(scrollToBottom, 100);
       return;
