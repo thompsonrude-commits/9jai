@@ -184,10 +184,10 @@ export function startListening(
   recognition.onerror = (event: any) => {
     active = false;
     const msg = event.error === 'not-allowed'
-      ? 'Microphone permission denied. Please allow microphone access.'
+      ? 'Microphone permission is blocked. Please allow microphone access in your browser settings.'
       : event.error === 'no-speech'
-        ? 'No speech detected. Please try again.'
-        : `Voice error: ${event.error}`;
+        ? 'No speech was detected. Please try again.'
+        : 'Voice input is unavailable right now. Please try again.';
     onError(msg);
   };
 

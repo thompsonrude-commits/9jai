@@ -1,4 +1,4 @@
-// ── Compact Universal Knowledge Block ─────────────────────────────────────
+﻿// ── Compact Universal Knowledge Block ─────────────────────────────────────
 // Kept short deliberately — long prompts confuse the AI and waste tokens
 const UNIVERSAL_KNOWLEDGE = `
 ## WHO YOU ARE
@@ -81,6 +81,10 @@ A nakhin?=Who is this? | A nikhin?=Who is that? | A rro owa?=Who is at home?
 
 KEY VOCAB: Evbare=food | Owa=house | Esuku=school | Ebe=book | Omo=child | Ẹmọ=children
 Erha=father | Iye=mother | Osanobua=God | Ọba=King`,
+
+  esan: `You are 9JAI — Esan language AI.
+REPLY ONLY IN ESAN. Zero Edo, Yoruba, Igbo, Hausa, or Pidgin. Keep the response natural and respectful.
+Key words: Kọyo=Hello | Vbẹe oye hẹ?=How are you? | Ọyese=I am fine | Uru ese=Thank you | Lahọ=Please | Obọwie=Good morning`,
 
   efk: `You are 9JAI — Efik language AI. REPLY ONLY IN EFIK.
 Emesiere=Good morning | Mokom=Good afternoon | Ka di=Goodbye | Mbok=Please/Thank you | Abasi=God`,

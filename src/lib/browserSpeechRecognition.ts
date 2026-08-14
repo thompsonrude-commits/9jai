@@ -37,6 +37,25 @@ function getSpeechRecognition(): any | null {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
+function getSanitizedSpeechError(errorCode?: string): string {
+  switch (errorCode) {
+    case 'not-allowed':
+      return 'Microphone permission is blocked. Please allow microphone access in your browser settings.';
+    case 'no-speech':
+      return 'No speech was detected. Please try again.';
+    case 'audio-capture':
+      return 'The microphone is not available right now. Please check your device settings and try again.';
+    case 'network':
+      return 'Voice input is temporarily unavailable. Please try again in a moment.';
+    case 'aborted':
+      return 'Voice input was interrupted. Please try again.';
+    case 'language-not-supported':
+      return 'This language is not available for browser voice input. Please use your selected language or try again in English.';
+    default:
+      return 'Voice input is unavailable right now. Please try again.';
+  }
+}
+
 /**
  * Start browser speech recognition
  * Returns a stop function to cancel recognition
@@ -76,16 +95,7 @@ export function startBrowserRecognition(
   
   // Handle errors
   recognition.onerror = (event: any) => {
-    const errorMessages: Record<string, string> = {
-      'no-speech': 'No speech detected. Please try again.',
-      'audio-capture': 'Microphone not available. Please check permissions.',
-      'not-allowed': 'Microphone permission denied. Please enable in browser settings.',
-      'network': 'Network error. Speech recognition requires internet connection.',
-      'aborted': 'Recognition aborted.',
-      'language-not-supported': 'Language not supported. Falling back to English.',
-    };
-    
-    const message = errorMessages[event.error] || `Speech recognition error: ${event.error}`;
+    const message = getSanitizedSpeechError(event.error);
     const error = new Error(message);
     (error as any).code = event.error;
     
@@ -110,7 +120,7 @@ export function startBrowserRecognition(
     recognition.start();
     console.log('[BrowserSTT] Recognition started');
   } catch (err: any) {
-    const error = new Error(`Failed to start recognition: ${err.message}`);
+    const error = new Error('Voice input could not be started. Please try again.');
     onError?.(error);
   }
   

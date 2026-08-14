@@ -18,7 +18,8 @@
     "test:backend": "npm --prefix functions run test",
     "test:all": "npm test && npm run test:backend",
     "validate": "node scripts/validate.mjs",
-    "validate:ci": "node scripts/validate.mjs --ci"
+    "validate:ci": "node scripts/validate.mjs --ci",
+    "secret:scan": "node scripts/secret-scan.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

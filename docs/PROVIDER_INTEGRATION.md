@@ -1,28 +1,32 @@
-Provider Integration Guide
+﻿# Provider Integration Guide
 
-This project supports routing requests to multiple AI providers via configured HTTP endpoints.
+This project is intentionally local-first. External providers are optional accelerators and never the only runtime path.
 
-Configuration
+## Security rules
 
-For each provider you want to enable, set two environment variables in your Vite environment (or server env if running server-side):
+- Keep all provider credentials server-side only.
+- Never store keys in frontend code, localStorage, or public bundles.
+- Prefer Firebase Secret Manager or secure server-side env configuration.
+- If a provider is unavailable or rejected, fail over locally without exposing infrastructure details to users.
 
-- `VITE_PROVIDER_<NAME>_URL` — the HTTP endpoint that accepts POST JSON of shape `{ task, prompt, maxTokens, temperature }` and returns JSON.
-- `VITE_PROVIDER_<NAME>_KEY` — optional API key to pass in `Authorization: Bearer <KEY>` header.
+## Supported patterns
 
-Examples (in `.env` or CI environment):
+- Backend service endpoints that accept `{ task, prompt, maxTokens, temperature }`
+- Secure server-side secret retrieval
+- Local fallback generation for chat, image, OCR, and search
 
-VITE_PROVIDER_OPENROUTER_URL=https://api.openrouter.example/route
-VITE_PROVIDER_OPENROUTER_KEY=sk-xxxx
+## Safe configuration pattern
 
-VITE_PROVIDER_HUGGINGFACE_URL=https://api-inference.huggingface.co/models/your-model
-VITE_PROVIDER_HUGGINGFACE_KEY=hf_xxx
+Use environment variables only on the server side, for example:
 
-Notes
-- Client-side builds will embed any `VITE_` env variables into the bundle. For production, prefer using server-side proxies (Cloud Functions) to keep keys secret.
-- The HTTP endpoint can be a small proxy function that translates the unified contract into provider-specific API calls.
+- `GROQ_API_KEY`
+- `HUGGINGFACE_API_KEY`
+- `OPENROUTER_API_KEY`
 
-Serverless Proxy (recommended)
-- Implement simple serverless endpoints (Firebase Functions, Cloud Run, AWS Lambda) that accept the unified request and call provider APIs using server-side secrets. The app can then point `VITE_PROVIDER_<NAME>_URL` to that proxy.
+Never use `VITE_` variables for provider secrets.
 
-Next steps
-- I can scaffold example Firebase Functions proxies for OpenRouter, HuggingFace, TogetherAI, Groq, Ollama, and Pollinations. Reply "scaffold functions" to continue and I will add them and deploy (you'll need to provide secrets or set them in Firebase Console).
+## Fallback behavior
+
+- If a provider times out, rejects, or returns malformed output, switch to the next available local or proxy route.
+- Never expose network or infrastructure errors to the user.
+- Keep retries bounded and only attempt transient recovery for a small subset of statuses.

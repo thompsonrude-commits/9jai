@@ -907,11 +907,30 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
             )}
 
             {/* Thinking indicator */}
-            {isBusy && !isStreaming && !streamingText && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 flex items-center gap-2">
-                  <Loader2 size={14} className="text-[#008751] animate-spin" />
-                  <span className="text-sm text-gray-500 font-medium">9jai is thinking...</span>
+            {isBusy && !streamingText && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-start">
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 border border-gray-200 shadow-sm flex items-center gap-2">
+                  {[
+                    { color: '#0d9b5d', border: 'rgba(8, 34, 24, 0.9)' },
+                    { color: '#ffffff', border: 'rgba(11, 16, 14, 0.95)' },
+                    { color: '#0d9b5d', border: 'rgba(8, 34, 24, 0.9)' },
+                  ].map((dot, i) => (
+                    <motion.span
+                      key={i}
+                      initial={{ scale: 0.8, opacity: 0.75 }}
+                      animate={{ scale: [0.9, 1.35, 0.96], opacity: [0.8, 1, 0.85], y: [0, -2, 0] }}
+                      transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.17, ease: 'easeInOut' }}
+                      className="block w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: dot.color,
+                        border: `1px solid ${dot.border}`,
+                        boxShadow: i === 1
+                          ? '0 0 0 1px rgba(12, 20, 15, 0.95), 0 0 12px rgba(255,255,255,0.9), 0 0 0 1px rgba(255,255,255,0.3)'
+                          : `0 0 0 1px ${dot.border}, 0 0 12px rgba(13,155,93,0.45)`,
+                      }}
+                    />
+                  ))}
+                  <span className="text-sm text-gray-700 font-medium">9jai is thinking...</span>
                 </div>
               </motion.div>
             )}

@@ -84,9 +84,15 @@ export default function VoiceConversation({ onVoiceInput, onSettingsOpen }: Voic
     };
 
     recognition.onerror = (event: any) => {
+      const normalizedMessage = event.error === 'not-allowed'
+        ? 'Microphone permission is blocked. Please allow microphone access in your browser settings.'
+        : event.error === 'no-speech'
+          ? 'No speech was detected. Please try again.'
+          : 'Voice input is unavailable right now. Please try again.';
+
       setState(prev => ({
         ...prev,
-        error: `Speech error: ${event.error}`,
+        error: normalizedMessage,
         isListening: false,
       }));
     };

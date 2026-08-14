@@ -58,18 +58,40 @@ export function applyTheme(theme: string): AppTheme {
   return normalized;
 }
 
-export function formatWeatherReport() {
+import { getCurrentLocationContext, getDeviceTimeZone } from './locationService';
+
+export async function formatWeatherReport(cityOverride?: string): Promise<string> {
+try {
+  const location = await getCurrentLocationContext();
+  const timezone = location.timezone || getDeviceTimeZone();
+  const targetCity = cityOverride || location.city || 'your location';
+
+  if (location.latitude && location.longitude) {
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+    const response = await fetch(weatherUrl, { headers: { Accept: 'application/json' } });
+    if (response.ok) {
+      const weather = await response.json();
+      const current = weather?.current;
+      if (current) {
+        const temp = current.temperature_2m ?? 'n/a';
+        const feels = current.apparent_temperature ?? 'n/a';
+        const wind = current.wind_speed_10m ?? 'n/a';
+        const humidity = current.relative_humidity_2m ?? 'n/a';
+        return `Weather for ${targetCity} right now: ${temp}°C, feels like ${feels}°C, humidity ${humidity}%, wind ${wind} km/h. Timezone: ${timezone}.`;
+      }
+    }
+  }
+
   const now = new Date();
   const month = now.getMonth();
   const season = (month >= 3 && month <= 9) ? 'Rainy season' : 'Dry/Harmattan season';
-  return `Weather report for Naija right now:
-- Lagos: 28–34°C, ${season.includes('Rainy') ? 'afternoon showers and high humidity' : 'dry harmattan breeze with dust haze'}.
-- Abuja: 25–36°C, ${season.includes('Rainy') ? 'possible thunderstorms later' : 'clear mornings and hot afternoons'}.
-- Kano: 22–40°C, ${season.includes('Rainy') ? 'scattered rain showers' : 'very dry heat and dust'}.
-- Port Harcourt: 26–32°C, humid with ${season.includes('Rainy') ? 'rain likely' : 'warm sunny spells'}.
-- Benin City: 27–33°C, ${season.includes('Rainy') ? 'heavy rain in the evening' : 'moderate harmattan conditions'}.
-
-Note: this is a general local forecast. For exact weather, check NIMET or your preferred local weather service.`;
+  return `Weather report for ${targetCity} right now:
+- Local conditions: ${season.includes('Rainy') ? 'warm and likely humid with rain around' : 'dry and sunny with warm conditions'}.
+- Timezone: ${timezone}.
+- For exact conditions, tell me your city so I can be more specific.`;
+} catch {
+  return 'I no fit check the weather right now. Tell me your city or allow location access and I go give you the local condition.';
+}
 }
 
 export function parseAppCommand(message: string): AppCommand | null {

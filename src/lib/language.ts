@@ -7,6 +7,7 @@ const PSEUDO_KEYWORDS: Record<string, string[]> = {
   ha: ['sannu', 'yaya', 'lafiya', 'na gode', 'kasuwa'],
   swa: ['habari', 'asante', 'siku', 'jambo'],
   edo: ['kọyo', 'koyo', 'obokhian', 'obokhe', 'ob\'awie', 'uru ese', 'ma rrie', 'ob\'avan'],
+  esan: ['vbẹe oye hẹ', 'ọyese', 'uru ese', 'hẹ', 'obokhian', 'ob\'ọwie', 'ob\'avan', 'ob\'ota', 'lahọ'],
 };
 
 export async function detectLanguage(text: string): Promise<{ code: string; name: string; reliable: boolean; confidence: number }> {
@@ -47,7 +48,7 @@ export function mapCodeToName(code: string): string {
   try {
     // Prefer simple mapping for common codes to avoid bundling `langs` at top-level
     const M: Record<string, string> = {
-      pcm: 'Nigerian Pidgin', yo: 'Yoruba', ig: 'Igbo', ha: 'Hausa', edo: 'Edo', efk: 'Efik', tiv: 'Tiv', fuv: 'Fulfulde', kan: 'Kanuri', sw: 'Swahili'
+      pcm: 'Nigerian Pidgin', yo: 'Yoruba', ig: 'Igbo', ha: 'Hausa', edo: 'Edo', esan: 'Esan', efk: 'Efik', tiv: 'Tiv', fuv: 'Fulfulde', kan: 'Kanuri', sw: 'Swahili'
     };
     return M[code] || code;
   } catch {

@@ -8,17 +8,6 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      // ── SECURITY: API keys are NO LONGER injected into the client bundle ──
-      // All AI calls now go through Firebase Cloud Functions (/api/ai/*)
-      // Keys live in Cloud Functions secrets — never in the browser.
-      //
-      // Only expose a minimal fallback key for dev mode (direct Groq calls
-      // when the emulator is not running). In production this is empty.
-      'import.meta.env.VITE_GROQ_KEY': JSON.stringify(
-        mode === 'development' ? (env.GROQ_API_KEY ?? '') : ''
-      ),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

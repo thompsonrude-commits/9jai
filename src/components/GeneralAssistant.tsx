@@ -15,7 +15,7 @@ import {
   getConversationLanguageContext,
   setConversationLanguageContext,
 } from '../lib/homepageLanguageRouter';
-import { initLocationContext, getCachedLocationContext } from '../lib/locationService';
+import { initLocationContext, getCachedLocationContext, getDeviceTimeText } from '../lib/locationService';
 import { enhanceImagePrompt, buildEnhancedImageRequest } from '../lib/imagePromptBuilder';
 import VideoPlayer from './VideoPlayer';
 import { buildFinalImagePrompt, fetchImageAsBase64 } from '../lib/imageService';
@@ -43,6 +43,7 @@ import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } f
 import { saveChatSession, getSessionById } from '../lib/sessionManager';
 import { buildSelfAwarePrompt, detectUnavailableFeatureRequest } from '../lib/selfAwarePrompt';
 import { initializeDefaultProviders } from '../lib/providerHealth';
+import { getLocalFallbackResponse } from '../lib/fallbackResponses';
 
 // ── Video Bubble ──────────────────────────────────────────────────────────
 function VideoBubble({ prompt }: { prompt: string }) {
@@ -71,6 +72,19 @@ const LANGUAGE_OPTIONS = [
   { code: 'ha', label: 'Hausa' },
   { code: 'pcm', label: 'Nigerian Pidgin' },
 ];
+
+function getLocalizedGreeting(displayName: string, languageCode: string): string {
+  const name = displayName?.trim() || 'Oga';
+  const greetings: Record<string, string> = {
+    en: `Welcome ${name}, how can I help you?`,
+    pcm: `Welcome Oga ${name}, wetin I fit do for you?`,
+    yo: `Ẹ káàbọ̀ ${name}, kí ni mo lè ṣe fún ọ?`,
+    ig: `Nnọọ ${name}, Gịnị m ga-enyere gị aka?`,
+    ha: `Sannu ${name}, me zan iya taimaka maka?`,
+    edo: `Kọyọ ${name}, ọriẹ gbe muẹre nẹ?`,
+  };
+  return greetings[languageCode] || greetings.pcm;
+}
 
 // ── Sidebar menu items ────────────────────────────────────────────────────
 const SIDEBAR_ITEMS = [
@@ -177,13 +191,35 @@ function useTypewriter(text: string, speed = 18) {
 }
 
 // ── Typewriter bubble ─────────────────────────────────────────────────────
+function normalizePidginPronouns(value: string): string {
+  return value
+    .replace(/(^|[\s\(\[{\"'])me\s+(dey|go|fit|want|no|know|see|sabi|like|be|don|take|chop|check|talk|help|answer|understand|need|born|use|come|carry|wanna)/gi, (_match, prefix, verb) => `${prefix}i ${verb}`)
+    .replace(/(^|[\s\(\[{\"'])me\b/gi, (_match, prefix) => `${prefix}i`)
+    .replace(/\bme\s+(dey|go|fit|want|no|know|see|sabi|like|be|don|take|chop|check|talk|help|answer|understand|need|born|use|come|carry|wanna)\b/gi, 'i $1');
+}
+
+function sanitizeDisplayText(value: string): string {
+  const sanitized = String(value || '')
+    .replace(/<think\b[\s\S]*?<\/think>/gi, '')
+    .replace(/<thinking\b[\s\S]*?<\/thinking>/gi, '')
+    .replace(/<\s*\/\s*think\s*>/gi, '')
+    .replace(/<\s*think\s*>/gi, '')
+    .replace(/\[Relevant Knowledge\]:[\s\S]*?(?=\n\s*(?:[A-Z]|[0-9]|"|$)|$)/gi, '')
+    .replace(/\s*\((?:en|yo|ig|ha|edo|pcm)\)\s*/gi, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return normalizePidginPronouns(sanitized);
+}
+
 function TypewriterBubble({ content, isNew }: { content: string; isNew: boolean }) {
-  const displayed = useTypewriter(isNew ? content : '', 18);
-  const text = isNew ? displayed : content;
+  const safeContent = sanitizeDisplayText(content);
+  const displayed = useTypewriter(isNew ? safeContent : '', 18);
+  const text = isNew ? displayed : safeContent;
   return (
     <div className="max-w-[85%] bg-[#0d2318] border border-[#008751]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-green-100 text-base leading-relaxed whitespace-pre-wrap shadow-[0_0_20px_rgba(0,135,81,0.1)]">
       {text}
-      {isNew && displayed.length < content.length && <span className="inline-block w-2 h-4 bg-[#00ff88] ml-0.5 animate-pulse rounded-sm align-middle" />}
+      {isNew && displayed.length < safeContent.length && <span className="inline-block w-2 h-4 bg-[#00ff88] ml-0.5 animate-pulse rounded-sm align-middle" />}
     </div>
   );
 }
@@ -380,12 +416,14 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
   }, [rebuildSystemPrompt]);
 
   useEffect(() => {
-    if (!user?.uid || !currentSessionId) {
-      if (!currentSessionId) {
-        setMessages([]);
-        historyRef.current = [];
-        rebuildSystemPrompt();
-      }
+    if (!user?.uid) {
+      return;
+    }
+
+    if (!currentSessionId) {
+      setMessages([]);
+      historyRef.current = [];
+      rebuildSystemPrompt();
       return;
     }
 
@@ -416,8 +454,10 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
 
   const scrollToBottom = useCallback(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, []);
   const updateMessageImage = useCallback((index: number, src: string) => {
-    if (!src || !src.startsWith('data:')) return;
-    setMessages(prev => prev.map((m, i) => i !== index ? m : { ...m, content: `__IMAGE__${src}`, timestamp: m.timestamp || Date.now() } as any));
+    if (!src) return;
+    // Accept data: or http(s) images and normalize to __IMAGE__ sentinel so messages render consistently
+    const normalized = src.startsWith('__IMAGE__') || src.startsWith('__GENERATE__') ? src : `__IMAGE__${src}`;
+    setMessages(prev => prev.map((m, i) => i !== index ? m : { ...m, content: normalized, timestamp: m.timestamp || Date.now() } as any));
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, streamingContent, scrollToBottom]);
@@ -465,17 +505,52 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
     if ((!text.trim() && pendingFiles.length === 0) || isBusy) return;
     const userMessage = text.trim();
     setInput(''); setIsBusy(true); stoppedRef.current = false; setLogoState('processing');
+
+    const timeQuery = /\b(current\s+time|what\s+time|time\s+now|what\s+time\s+is\s+it|time\s+be\s+am|clock)\b/i.test(userMessage);
+    const weatherQuery = /\b(weather|forecast|rain|temperature|sunny|humid|storm|cloudy|cold|hot)\b/i.test(userMessage) && !/\b(generate|image|photo|logo|draw)\b/i.test(userMessage);
+
+    if (timeQuery) {
+      const languageCode = getConversationLanguageContext() || selectedLanguage || 'pcm';
+      const response = {
+        en: `Your local time is ${getDeviceTimeText()}.`,
+        pcm: `Your local time dey: ${getDeviceTimeText()}.`,
+        yo: `Aago ibẹ̀ yín ni ${getDeviceTimeText()}.`,
+        ig: `Oge gị na mpaghara gị bụ ${getDeviceTimeText()}.`,
+        ha: `Lokacin kujerarka shine ${getDeviceTimeText()}.`,
+        edo: `Ẹghẹ gha rẹvbe ${getDeviceTimeText()}.`,
+      }[languageCode] || `Your local time is ${getDeviceTimeText()}.`;
+      setMessages(prev => [...prev, { role: 'user', content: userMessage, timestamp: Date.now() }, { role: 'model', content: response, timestamp: Date.now(), isNew: true }]);
+      historyRef.current.push({ role: 'user', content: userMessage });
+      historyRef.current.push({ role: 'assistant', content: response });
+      setIsBusy(false);
+      setLogoState('idle');
+      return;
+    }
+
+    if (weatherQuery) {
+      const languageCode = getConversationLanguageContext() || selectedLanguage || 'pcm';
+      const weatherReport = await formatWeatherReport();
+      const localizedWeather = getLocalFallbackResponse(userMessage, languageCode);
+      const response = weatherReport || localizedWeather;
+      setMessages(prev => [...prev, { role: 'user', content: userMessage, timestamp: Date.now() }, { role: 'model', content: response, timestamp: Date.now(), isNew: true }]);
+      historyRef.current.push({ role: 'user', content: userMessage });
+      historyRef.current.push({ role: 'assistant', content: response });
+      setIsBusy(false);
+      setLogoState('idle');
+      return;
+    }
     
     // Check for unavailable feature requests
     if (userMessage) {
       const unavailableCheck = await detectUnavailableFeatureRequest(userMessage);
       if (unavailableCheck) {
+        const safeMessage = sanitizeDisplayText(unavailableCheck.message);
         setMessages(prev => [...prev, 
           { role: 'user', content: userMessage, timestamp: Date.now() },
-          { role: 'model', content: unavailableCheck.message, timestamp: Date.now(), isNew: true }
+          { role: 'model', content: safeMessage, timestamp: Date.now(), isNew: true }
         ]);
         historyRef.current.push({ role: 'user', content: userMessage });
-        historyRef.current.push({ role: 'assistant', content: unavailableCheck.message });
+        historyRef.current.push({ role: 'assistant', content: safeMessage });
         setIsBusy(false);
         setLogoState('idle');
         return;
@@ -483,10 +558,17 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
     }
     
     try {
-      const detected = await detectLanguageFromInput(userMessage || '');
-      const currentLang = getConversationLanguageContext();
-      if (detected.code !== currentLang && detected.confidence >= 0.55) { setConversationLanguageContext(detected.code); setSelectedLanguage(detected.code); rebuildSystemPrompt(); }
-      else if (shouldAutoSwitch(detected.confidence)) { setConversationLanguageContext(detected.code); setSelectedLanguage(detected.code); rebuildSystemPrompt(); }
+      const currentLang = getConversationLanguageContext() || selectedLanguage || 'pcm';
+      const explicitLanguageSwitch = /\b(speak|talk|switch to|use)\s+(english|pidgin|yoruba|igbo|hausa|edo)\b/i.test(userMessage || '');
+
+      if (!explicitLanguageSwitch && currentLang && ['en', 'yo', 'ig', 'ha', 'edo'].includes(currentLang)) {
+        // Preserve the user's explicit language selection during the conversation.
+        // Automatic detection should only be used before a language has been chosen.
+      } else {
+        const detected = await detectLanguageFromInput(userMessage || '');
+        if (detected.code !== currentLang && detected.confidence >= 0.55) { setConversationLanguageContext(detected.code); setSelectedLanguage(detected.code); rebuildSystemPrompt(); }
+        else if (shouldAutoSwitch(detected.confidence)) { setConversationLanguageContext(detected.code); setSelectedLanguage(detected.code); rebuildSystemPrompt(); }
+      }
     } catch (e) {}
     let fileContext = '';
     const filePreviews = [...pendingFiles];
@@ -523,23 +605,78 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
     }
     const displayMessage = userMessage || `📎 ${filePreviews.map(f => f.name).join(', ')}`;
     if (userMessage && isImageRequest(userMessage)) {
+      // Add the user message and insert an image/video/map placeholder into the chat
       setMessages(prev => [...prev, { role: 'user', content: displayMessage, timestamp: Date.now() }]);
       const prompt = extractImagePrompt(userMessage);
       const isVideoRequest = /\b(video|animation|animate|movie|clip|motion|moving)\b/i.test(userMessage);
       setLogoState(isVideoRequest ? 'video' : 'image');
       const result = isVideoRequest ? { type: 'video' as const, url: `__VIDEO__${prompt}`, label: `🎬 ${prompt}` } : buildImageResult(prompt);
       const contentPayload = (result.url && result.url.startsWith('__')) ? result.url : `__IMAGE__${result.url}`;
+
       setMessages(prev => [...prev, { role: 'model', content: contentPayload, timestamp: Date.now(), imagePrompt: prompt, imgType: result.type, imgLabel: result.label, mapPlace: result.mapPlace, isNigeriaMap: result.isNigeriaMap, mapFrom: result.mapFrom, mapTo: result.mapTo, mapMode: result.mapMode, isNew: true }]);
+      // Push user message into history
       historyRef.current.push({ role: 'user', content: userMessage });
+
+      // ALSO attach the generated image to the conversation history as an assistant-level artifact
+      // so the chat model receives a compact reference it can use when producing explanations.
+      // Use a clear sentinel: __IMAGE__<url> or __GENERATE__<prompt> so the orchestrator recognizes it.
+      const imageHistoryEntry = contentPayload.startsWith('__') ? contentPayload : `__IMAGE__${contentPayload}`;
+      historyRef.current.push({ role: 'assistant', content: imageHistoryEntry });
+      // Add a system hint telling the model the visual exists and should be referenced in explanations.
+      historyRef.current.push({ role: 'system', content: 'A generated visual/diagram is attached and available. When responding, reference the visual explicitly: describe labeled parts, use numbered labels when helpful (e.g., "Label 1"), and avoid saying you cannot display images. Use the attached visual URL/reference to ground your explanation.' });
+
+      // Determine if the user asked for an explanation WITH the image/diagram
+      const explanationTrigger = /\b(explain|teach|describe|how|step by step|show me how|show me|demonstrate|explain the|explain this)\b/i;
+      const visualTrigger = /\b(image|diagram|visual|picture|illustration|chart|graph)\b/i;
+      const needsExplanation = explanationTrigger.test(userMessage) && visualTrigger.test(userMessage);
+
+      if (needsExplanation) {
+        // Stream the assistant explanation while the image is generated in the ImageBubble component
+        setIsStreaming(true);
+        setStreamingContent('');
+        setIsBusy(true);
+        try {
+          let accumulated = '';
+          for await (const chunk of unifiedChatStream([...historyRef.current], 0.7)) {
+            accumulated += chunk;
+            setStreamingContent(sanitizeDisplayText(accumulated));
+            scrollToBottom();
+          }
+          const finalText = sanitizeDisplayText(accumulated || '');
+          setMessages(prev => [...prev, { role: 'model', content: finalText, timestamp: Date.now(), isNew: true }]);
+          historyRef.current.push({ role: 'assistant', content: finalText });
+          lastAIResponseRef.current = finalText;
+        } catch (err) {
+          const language = getConversationLanguageContext() || selectedLanguage || 'pcm';
+          const fallback = getLocalFallbackResponse(userMessage, language);
+          setMessages(prev => [...prev, { role: 'model', content: fallback, timestamp: Date.now(), isNew: true }]);
+          historyRef.current.push({ role: 'assistant', content: fallback });
+        } finally {
+          setIsStreaming(false);
+          setIsBusy(false);
+          setLogoState('success');
+          setTimeout(() => setLogoState('idle'), 2000);
+          setTimeout(scrollToBottom, 100);
+        }
+
+        return;
+      }
+
+      // If no explanation requested, just return (image/video/map placeholder will render)
       historyRef.current.push({ role: 'assistant', content: `Generated ${result.type} of "${prompt}" for you!` });
-      setIsBusy(false); setLogoState('success'); setTimeout(() => setLogoState('idle'), 2000); setTimeout(scrollToBottom, 100); return;
+      setIsBusy(false); setLogoState('success'); setTimeout(() => setLogoState('idle'), 2000); setTimeout(scrollToBottom, 100);
+      return;
     }
     const appCommand = parseAppCommand(userMessage);
     if (appCommand) {
       setInput(''); setMessages(prev => [...prev, { role: 'user', content: displayMessage, timestamp: Date.now() }]);
       if (appCommand.command === 'clearChat') { historyRef.current = historyRef.current.filter(item => item.role === 'system'); setMessages([{ role: 'model', content: 'Chat history don clear. We fit start again fresh now.', timestamp: Date.now(), isNew: true }]); setIsBusy(false); setLogoState('idle'); return; }
       if (appCommand.command === 'setTheme' && appCommand.value) { const appliedTheme = applyTheme(appCommand.value); setTheme(appliedTheme); setMessages(prev => [...prev, { role: 'model', content: `Theme don change to ${appliedTheme}.`, timestamp: Date.now(), isNew: true }]); setIsBusy(false); setLogoState('idle'); return; }
-      if (appCommand.command === 'weather') { setMessages(prev => [...prev, { role: 'model', content: formatWeatherReport(), timestamp: Date.now(), isNew: true }]); setIsBusy(false); setLogoState('idle'); return; }
+      if (appCommand.command === 'weather') {
+        const weatherReport = await formatWeatherReport();
+        setMessages(prev => [...prev, { role: 'model', content: weatherReport, timestamp: Date.now(), isNew: true }]);
+        setIsBusy(false); setLogoState('idle'); return;
+      }
       if (appCommand.command === 'openLanguages') { navigate('/languages'); setMessages(prev => [...prev, { role: 'model', content: 'I don open the language menu for you.', timestamp: Date.now(), isNew: true }]); setIsBusy(false); setLogoState('idle'); return; }
       if (appCommand.command === 'help') { setMessages(prev => [...prev, { role: 'model', content: getThemeHelpText(), timestamp: Date.now(), isNew: true }]); setIsBusy(false); setLogoState('idle'); return; }
     }
@@ -554,10 +691,12 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
     let fullText = ''; let stopped = false;
     abortRef.current = () => { stopped = true; stopNigerianSpeech(); };
     try {
-      const convLang = getConversationLanguage() || 'pcm';
+      const convLang = getConversationLanguageContext() || selectedLanguage || 'pcm';
       for await (const chunk of unifiedChatStream(historyRef.current, 0.7)) {
         if (stopped || stoppedRef.current) break;
-        fullText += chunk; setStreamingContent(fullText); scrollToBottom();
+        fullText += chunk;
+        setStreamingContent(sanitizeDisplayText(fullText));
+        scrollToBottom();
         if (speakerEnabled && chunk) {
           if (convLang === 'pcm') { speakNigerian(chunk, selectedAssistantId); }
           else { const pers = VOICE_PERSONALITIES.find(p => p.id === selectedAssistantId) || VOICE_PERSONALITIES[0]; speakText(chunk, pers); }
@@ -565,13 +704,14 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
       }
       if (!stopped && !stoppedRef.current && speakerEnabled) speakNigerian('', selectedAssistantId);
       if (!stopped && !stoppedRef.current) {
-        const convLang2 = getConversationLanguage() || 'pcm';
-        const phon = generatePhonetics(fullText, convLang2);
-        historyRef.current.push({ role: 'assistant', content: fullText });
-        lastAIResponseRef.current = fullText;
-        setMessages(prev => [...prev, { role: 'model', content: fullText, timestamp: Date.now(), isNew: true, phonetics: phon } as any]);
+        const convLang2 = getConversationLanguageContext() || selectedLanguage || 'pcm';
+        const cleanFullText = sanitizeDisplayText(fullText);
+        const phon = generatePhonetics(cleanFullText, convLang2);
+        historyRef.current.push({ role: 'assistant', content: cleanFullText });
+        lastAIResponseRef.current = cleanFullText;
+        setMessages(prev => [...prev, { role: 'model', content: cleanFullText, timestamp: Date.now(), isNew: true, phonetics: phon } as any]);
         // Save to Firestore if user is logged in
-        saveToFirestore(userMessage, fullText);
+        saveToFirestore(userMessage, cleanFullText);
         // Save to localStorage session
         if (user?.uid) {
           saveChatSession(user.uid, {
@@ -660,11 +800,8 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center min-h-full text-center px-4 pb-32">
             <div className="mb-8"><NineJALogo state={logoState} size={200} /></div>
             <h2 className="text-3xl font-normal text-white mb-2">
-              Welcome Oga {user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Oga'},
+              {getLocalizedGreeting(user?.displayName || user?.email || 'Oga', selectedLanguage || 'pcm')}
             </h2>
-            <h3 className="text-2xl font-normal text-[#00ff88] mb-4">
-              Wetin i fit do for you?
-            </h3>
           </motion.div>
         ) : (
           <AnimatePresence initial={false}>
@@ -703,10 +840,33 @@ export default function GeneralAssistant({ user, isAdmin, currentSessionId, onOp
 
       {/* ── Thinking dots above input ─────────────────────────────────── */}
       <AnimatePresence>
-        {isBusy && !isStreaming && (
+        {isBusy && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="flex justify-center pb-2">
-            <div className="flex items-center gap-2 bg-[#0d1f10] border border-[#008751]/20 px-5 py-2.5 rounded-full">
-              {[0, 0.2, 0.4].map((delay, i) => <div key={i} className="w-2.5 h-2.5 bg-[#008751] rounded-full animate-bounce" style={{ animationDelay: `${delay}s` }} />)}
+            <div className="flex items-center gap-2 bg-[#0d1f10] border border-[#008751]/20 px-5 py-2.5 rounded-full shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
+              {[
+                { color: '#0d9b5d', border: 'rgba(7, 35, 22, 0.8)', glow: 'rgba(13, 155, 93, 0.55)' },
+                { color: '#ffffff', border: 'rgba(10, 20, 15, 0.9)', glow: 'rgba(255,255,255,0.85)' },
+                { color: '#0d9b5d', border: 'rgba(7, 35, 22, 0.8)', glow: 'rgba(13, 155, 93, 0.55)' },
+              ].map((dot, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scale: 0.82, opacity: 0.8 }}
+                  animate={{
+                    scale: [0.9, 1.32, 0.94],
+                    opacity: [0.8, 1, 0.85],
+                    y: [0, -1.5, 0],
+                  }}
+                  transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.17, ease: 'easeInOut' }}
+                  className="w-3 h-3 rounded-full"
+                  style={{
+                    backgroundColor: dot.color,
+                    border: `1px solid ${dot.border}`,
+                    boxShadow: i === 1
+                      ? '0 0 0 1px rgba(11, 16, 14, 0.95), 0 0 10px rgba(255,255,255,0.9), 0 0 0 1px rgba(255,255,255,0.3)'
+                      : `0 0 0 1px ${dot.border}, 0 0 10px ${dot.glow}`,
+                  }}
+                />
+              ))}
               <span className="text-xs text-[#008751] ml-1 font-semibold">9JAI is thinking…</span>
             </div>
           </motion.div>

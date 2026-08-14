@@ -19,11 +19,10 @@ import SuperEcosystem from './components/SuperEcosystem';
 import AdminLogin from './components/AdminLogin';
 import UserLibrary from './components/UserLibrary';
 import MinimalSidebar from './components/MinimalSidebar';
-import SystemStatusIndicator from './components/SystemStatusIndicator';
 import { NIGERIAN_LANGUAGES } from './lib/nigerianLanguages';
 import { trackUserLogin } from './lib/analyticsService';
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@9jai.app';
+const ADMIN_EMAIL = 'admin@9jai.app';
 
 // Build a flat map of languageId -> languageName from nigerianLanguages
 const LANGUAGE_ID_TO_NAME: Record<string, string> = {};
@@ -151,9 +150,6 @@ export default function App() {
         <AnimatePresence>
           {showLibrary && <UserLibrary user={user} onClose={() => setShowLibrary(false)} />}
         </AnimatePresence>
-        
-        {/* System Status Indicator - shows on all pages */}
-        <SystemStatusIndicator />
       </div>
     );
   }
@@ -195,9 +191,6 @@ export default function App() {
         <AnimatePresence>
           {showLibrary && <UserLibrary user={user} onClose={() => setShowLibrary(false)} />}
         </AnimatePresence>
-        
-        {/* System Status Indicator - shows on all pages for authenticated users */}
-        <SystemStatusIndicator />
       </div>
     </div>
   );

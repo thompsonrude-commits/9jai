@@ -38,7 +38,9 @@ const SESSION_ANALYTICS_COLLECTION = 'session_analytics';
 /**
  * Track user login
  */
-export async function trackUserLogin(userId: string, email: string): Promise<void> {
+export async function trackUserLogin(userId: string | undefined, email: string | null | undefined): Promise<void> {
+  if (!userId || !email) return;
+
   try {
     const analyticsRef = collection(db, ANALYTICS_COLLECTION);
     const q = query(analyticsRef, where('userId', '==', userId));
@@ -78,11 +80,13 @@ export async function trackUserLogin(userId: string, email: string): Promise<voi
  * Track session start
  */
 export async function trackSessionStart(
-  userId: string,
-  email: string,
+  userId: string | undefined,
+  email: string | null | undefined,
   languageId: string,
   languageName: string
 ): Promise<string> {
+  if (!userId || !email) return '';
+
   try {
     const sessionRef = collection(db, SESSION_ANALYTICS_COLLECTION);
     const now = Date.now();
@@ -110,10 +114,12 @@ export async function trackSessionStart(
  * Track message sent
  */
 export async function trackMessage(
-  userId: string,
+  userId: string | undefined,
   sessionId: string,
   languageId: string
 ): Promise<void> {
+  if (!userId) return;
+
   try {
     // Update session analytics
     if (sessionId) {

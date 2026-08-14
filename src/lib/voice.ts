@@ -175,10 +175,27 @@ export interface SpeechRecognitionResult {
   stop: () => void;
 }
 
+function getSanitizedSpeechError(errorCode?: string): string {
+  switch (errorCode) {
+    case 'not-allowed':
+      return 'Microphone permission is blocked. Please allow microphone access in your browser settings.';
+    case 'no-speech':
+      return 'No speech was detected. Please try again.';
+    case 'audio-capture':
+      return 'The microphone is not available right now. Please check your device settings and try again.';
+    case 'network':
+      return 'Voice input is temporarily unavailable. Please try again in a moment.';
+    case 'aborted':
+      return 'Voice input was interrupted. Please try again.';
+    default:
+      return 'Voice input is unavailable right now. Please try again.';
+  }
+}
+
 export function recordSpeech(onStatusChange?: (status: 'listening' | 'processing' | 'done' | 'error') => void): SpeechRecognitionResult {
   if (typeof window === 'undefined' || (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window))) {
     return {
-      promise: Promise.reject('Speech recognition not supported'),
+      promise: Promise.reject('Speech recognition is not supported in this browser.'),
       stop: () => {}
     };
   }
@@ -223,7 +240,7 @@ export function recordSpeech(onStatusChange?: (status: 'listening' | 'processing
       resolved = true;
       clearTimeout(timeoutId);
       onStatusChange?.('error');
-      reject(event.error);
+      reject(getSanitizedSpeechError(event.error));
     };
 
     recognition.onend = () => {
@@ -231,7 +248,7 @@ export function recordSpeech(onStatusChange?: (status: 'listening' | 'processing
       if (!resolved) {
         resolved = true;
         clearTimeout(timeoutId);
-        reject('No speech detected');
+        reject('No speech was detected. Please try again.');
       }
     };
 
@@ -241,7 +258,7 @@ export function recordSpeech(onStatusChange?: (status: 'listening' | 'processing
       if (!resolved) {
         resolved = true;
         clearTimeout(timeoutId);
-        reject(e);
+        reject('Voice input could not be started. Please try again.');
       }
     }
   });

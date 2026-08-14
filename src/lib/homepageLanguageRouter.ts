@@ -1,4 +1,4 @@
-/**
+﻿/**
  * HOMEPAGE LANGUAGE ROUTER
  * Central system for detecting language and routing to appropriate language engines
  * Maintains Nigerian Pidgin as default while supporting instant language switching
@@ -56,6 +56,14 @@ const LANGUAGE_ROUTES: Record<string, LanguageRoute> = {
     keywords: ['kọyọ', 'kọọ', 'vbèè', 'obiluu', 'ọbowiẹ', 'ọbavan', 'ọbota', 'obo kia', 'òkhíen', 'ẹdó'],
     greetings: ['kọyọ', 'kọọ', 'ọbowiẹ', 'ọbavan', 'ọbota', 'obo kia', 'òkhíen òwie', 'vbèè óye hé'],
     slang: ['obiluu', 'uzébu', 'iyoba', 'oba', 'omwan', 'i horen', 'ẹ̀dó', 'bini'],
+  },
+  esan: {
+    code: 'esan',
+    name: 'Esan',
+    folder: 'esan',
+    keywords: ['kọyo', 'ọyese', 'uru ese', 'vbẹe oye hẹ', 'lahọ', 'obọwie', 'obavan', 'obota', 'esan'],
+    greetings: ['kọyo', 'vbẹe oye hẹ', 'ọyese', 'uru ese', 'obọwie', 'obavan', 'obota'],
+    slang: ['esan', 'ẹdion', 'omon', 'iya', 'oba'],
   },
   efk: {
     code: 'efk',
@@ -148,16 +156,8 @@ export async function detectLanguageFromInput(text: string): Promise<{
     { code: 'yo',  name: 'Yoruba',         markers: ['bawo ni', 'ẹ kaaro', 'ẹ káàárọ̀', 'ẹ kaale', 'e se pupo', 'bẹẹni', 'bẹ́ẹ̀ni', 'o dabo', 'o dàbọ̀', 'kinni', 'ẹ pẹlẹ', 'e ṣeun', 'yoruba', 'jọ̀ọ́', 'bawo'] },
     { code: 'ig',  name: 'Igbo',           markers: ['kedu', 'kedụ', 'daalụ', 'ọ dị mma', 'igbo kwenu', 'gịnị', 'chukwu okike', 'igbo', 'biko', 'ututu ọma', 'nno', 'nnọọ', 'ehihie ọma'] },
     { code: 'ha',  name: 'Hausa',          markers: ['sannu da zuwa', 'ina kwana', 'lafiya lau', 'yaya dai', 'barka da safe', 'barka da rana', 'don allah', 'hausa', 'na gode', 'sannu'] },
-    { code: 'edo', name: 'Edo',            markers: [
-        // Verified from edolanguageandculture.substack.com
-        'koyọ', 'kọyọ', 'koyo', 'vbọ yehẹ', 'ọ yẹse', 'uruẹse',
-        'i dee', 'i rri', 'i rrowa', 'u dee', 'u gha', 'u ta ẹre', 'u tama',
-        'a nakhin', 'a nikhin', 'a miẹrẹn', 'a kue', 'a rro owa',
-        'dọmọ', 'ovbi mwẹn', 'omẹ', 'iyee', 'evbare', 'esuku',
-        // Traditional markers
-        'obiluu', 'ob\'ọwie', 'ob\'avan', 'ob\'ota', 'obokhian', 'osanobua',
-        'uzébu', 'bini', 'benin city', 'mwẹn', 'lahọ', 'ẹdo',
-    ]},
+    { code: 'edo', name: 'Edo',            markers: ['koyọ', 'kọyọ', 'koyo', 'vbọ yehẹ', 'ọ yẹse', 'uruẹse', 'i dee', 'i rri', 'i rrowa', 'u dee', 'u gha', 'u ta ẹre', 'u tama', 'a nakhin', 'a nikhin', 'a miẹrẹn', 'a kue', 'a rro owa', 'dọmọ', 'ovbi mwẹn', 'omẹ', 'iyee', 'evbare', 'esuku', 'obiluu', 'ob\'ọwie', 'ob\'avan', 'ob\'ota', 'obokhian', 'osanobua', 'uzébu', 'bini', 'benin city', 'mwẹn', 'lahọ', 'ẹdo']},
+    { code: 'esan', name: 'Esan', markers: ['vbẹe oye hẹ', 'ọyese', 'uru ese', 'obọwie', 'obavan', 'obota', 'lahọ', 'esan'] },
     { code: 'sw',  name: 'Swahili',        markers: ['habari gani', 'asante sana', 'karibu sana', 'hakuna matata', 'swahili', 'habari', 'jambo', 'asante', 'karibu', 'tafadhali', 'kwaheri'] },
     { code: 'efk', name: 'Efik',           markers: ['abasi yaimo', 'obong', 'ekpe efik', 'efik', 'emesiere', 'mokom', 'mbok'] },
     { code: 'tiv', name: 'Tiv',            markers: ['tiv kwagh', 'iyol tiv', 'mom tiv', 'tiv', 'msugh', 'aôndo', 'tar tiv'] },
@@ -220,24 +220,28 @@ export function shouldAutoSwitch(confidence: number): boolean {
 export function getHomepageSystemPrompt(languageCode: string): string {
   const PROMPTS: Record<string, string> = {
     pcm: `You are 9JAI. You ONLY speak Nigerian Pidgin English (Naija). NEVER mix in Yoruba, Igbo, Hausa, or Edo words.
-Pidgin rules: use wetin, dey, abeg, oya, sabi, wahala, no wahala, how far, e dey, na, dem, una, im, pikin, oga, nau naturally.
-Greet first time: "How far! I be 9JAI. Wetin I fit do for you today? 🇳🇬"`,
+    Pidgin rules: use wetin, dey, abeg, oya, sabi, wahala, no wahala, how far, e dey, na, dem, una, im, pikin, oga, nau naturally.
+    Greet first time: "How far! I be 9JAI. Wetin I fit do for you today? 🇳🇬"`,
 
     yo: `You are 9JAI. You ONLY speak Yoruba. NEVER mix Pidgin, Igbo, Hausa or Edo.
-Use: Ẹ káàárọ̀ (morning), Ẹ káàlẹ́ (evening), E se (thanks), Bẹẹni (yes), Bẹẹkọ (no), Bawo ni (how are you), E jọ (please), O dabo (bye), Kinni (what).
-Greet: "Ẹ káàbọ̀! Mo jẹ́ 9JAI. Kí ni mo lè ṣe fún yín?"`,
+    Use: Ẹ káàárọ̀ (morning), Ẹ káàlẹ́ (evening), E se (thanks), Bẹẹni (yes), Bẹẹkọ (no), Bawo ni (how are you), E jọ (please), O dabo (bye), Kinni (what).
+    Greet: "Ẹ káàbọ̀! Mo jẹ́ 9JAI. Kí ni mo lè ṣe fún yín?"`,
 
     ig: `You are 9JAI. You ONLY speak Igbo. NEVER mix Pidgin, Yoruba, Hausa or Edo.
-Use: Ututu ọma (morning), Ehihie ọma (afternoon), Daalụ (thanks), Biko (please), Ee (yes), Mba (no), Kedu (how are you), Ọ dị mma (fine), Nno (welcome), Gịnị (what).
-Greet: "Nnọọ! Aha m bụ 9JAI. Gịnị m ga-enyere gị aka?"`,
+    Use: Ututu ọma (morning), Ehihie ọma (afternoon), Daalụ (thanks), Biko (please), Ee (yes), Mba (no), Kedu (how are you), Ọ dị mma (fine), Nno (welcome), Gịnị (what).
+    Greet: "Nnọọ! Aha m bụ 9JAI. Gịnị m ga-enyere gị aka?"`,
 
     ha: `You are 9JAI. You ONLY speak Hausa. NEVER mix Pidgin, Yoruba, Igbo or Edo.
-Use: Barka da safe (morning), Barka da rana (afternoon), Na gode (thanks), Don Allah (please), Eh (yes), A'a (no), Yaya dai (how are you), Lafiya lau (fine), Sannu (hello).
-Greet: "Sannu! Ni ne 9JAI. Me zan iya taimaka maka?"`,
+    Use: Barka da safe (morning), Barka da rana (afternoon), Na gode (thanks), Don Allah (please), Eh (yes), A'a (no), Yaya dai (how are you), Lafiya lau (fine), Sannu (hello).
+    Greet: "Sannu! Ni ne 9JAI. Me zan iya taimaka maka?"`,
 
     edo: `You are 9JAI. You ONLY speak Edo (Bini) language from Edo State, Nigeria. NEVER mix Pidgin, Yoruba, Igbo or Hausa.
-Use: Kọyọ (hello), Ob'ọwie (good morning), Ob'avan (afternoon), Ob'ota (evening), Obiluu (thank you), Lahọ (please), Obokhian (welcome), Osanobua (God), Ọba (king), Uzébu (excellent).
-Greet: "Kọyọ! I be 9JAI. Vbèè I ghi zẹ iran nẹ?"`,
+    Use: Kọyọ (hello), Ob'ọwie (good morning), Ob'avan (afternoon), Ob'ota (evening), Obiluu (thank you), Lahọ (please), Obokhian (welcome), Osanobua (God), Ọba (king), Uzébu (excellent).
+    Greet: "Kọyọ! I be 9JAI. Vbèè I ghi zẹ iran nẹ?"`,
+
+    esan: `You are 9JAI. You ONLY speak Esan. NEVER mix Edo, Yoruba, Igbo, Hausa or Pidgin.
+    Use: Kọyo (hello), Vbẹe oye hẹ? (how are you), Ọyese (I am fine), Uru ese (thank you), Lahọ (please), Obọwie (good morning), Obavan (afternoon), Obota (evening).
+    Greet: "Kọyo! I be 9JAI. Vbẹe oye hẹ?"`,
 
     efk: `You are 9JAI. You ONLY speak Efik. Greet: "Abasi yaimo! Mi ye 9JAI."`,
     tiv: `You are 9JAI. You ONLY speak Tiv. Greet: "Iye! Nyi 9JAI."`,
@@ -287,4 +291,3 @@ export function resetLanguageContext(): void {
   conversationLanguageContext = 'pcm';
   setConversationLanguage('pcm');
 }
-
