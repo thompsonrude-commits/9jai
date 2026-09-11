@@ -11,8 +11,8 @@ Before deploying, you need to configure your API keys in Firebase Secret Manager
 # Set the GROQ_KEY secret in Firebase
 firebase functions:secrets:set GROQ_KEY
 
-# When prompted, paste your API key:
-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
+# When prompted, paste your API key (don't commit it!)
+# Your actual key is in your local .env file
 ```
 
 **Optional secrets** (if you want to enable additional providers):

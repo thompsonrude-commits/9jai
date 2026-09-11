@@ -46,7 +46,7 @@ $response = Read-Host "Have you configured the GROQ_KEY secret? (y/n)"
 if ($response -ne 'y') {
     Write-Host "❌ Please configure secrets before deploying" -ForegroundColor Red
     Write-Host "   Run: firebase functions:secrets:set GROQ_KEY" -ForegroundColor Cyan
-    Write-Host "   Then paste your API key: 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" -ForegroundColor Cyan
+    Write-Host "   Then paste your API key from the .env file" -ForegroundColor Cyan
     exit 1
 }
 

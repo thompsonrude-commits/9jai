@@ -36,10 +36,7 @@ After deployment, set your API keys:
 vercel env add GROQ_KEY
 ```
 
-Paste when prompted:
-```
-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
-```
+Paste when prompted: `your-actual-groq-key-here` (get it from your .env file)
 
 Choose **Production** when asked which environment.
 
