@@ -9,3 +9,5 @@ coverage
 test-*
 *.test.ts
 *.test.js
+functions/
+api/index.ts

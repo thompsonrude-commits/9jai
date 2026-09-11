@@ -16,8 +16,7 @@
     { "src": "/api/v1/image/generate", "dest": "/api/image.js" },
     { "src": "/api/ai/health", "dest": "/api/health.js" },
     { "src": "/api/v1/health", "dest": "/api/health.js" },
-    { "src": "/api/v1/providers", "dest": "/api/providers.js" },
-    { "src": "/(.*)", "dest": "/api/index.ts" }
+    { "src": "/api/v1/providers", "dest": "/api/providers.js" }
   ],
   "env": {
     "NODE_ENV": "production"
