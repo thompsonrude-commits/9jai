@@ -2,7 +2,7 @@
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  const GROQ_KEY = process.env.GROQ_KEY;
+  const GROQ_KEY = process.env.GROQ_API_KEY || process.env.GROQ_KEY;
   
   const providers = [
     {

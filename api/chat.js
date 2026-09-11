@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
     }
 
     // Direct Groq API call
-    const GROQ_KEY = process.env.GROQ_KEY;
+    const GROQ_KEY = process.env.GROQ_API_KEY || process.env.GROQ_KEY;
     if (!GROQ_KEY) {
       return res.status(500).json({ 
         error: 'API key not configured',
