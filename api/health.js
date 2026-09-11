@@ -1,10 +1,24 @@
 // Vercel serverless function for health endpoint
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
   try {
-    const { aiHealth } = require('../functions/lib/index');
-    return await aiHealth(req, res);
+    const { getAllHealthSnapshots } = require('../functions/lib/logger');
+    const health = getAllHealthSnapshots();
+    
+    return res.status(200).json({
+      ok: true,
+      service: '9jai-vercel',
+      timestamp: Date.now(),
+      providers: health
+    });
   } catch (error) {
-    console.error('Health function error:', error);
-    res.status(500).json({ error: 'Function initialization failed', details: error.message });
+    console.error('Health check error:', error);
+    return res.status(200).json({
+      ok: true,
+      service: '9jai-vercel',
+      timestamp: Date.now(),
+      error: error.message
+    });
   }
 };

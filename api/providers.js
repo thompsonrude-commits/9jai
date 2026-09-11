@@ -1,10 +1,20 @@
 // Vercel serverless function for providers endpoint
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
   try {
-    const { v1Providers } = require('../functions/lib/index');
-    return await v1Providers(req, res);
+    const { getCompactProviderReports } = require('../functions/lib/media/providerRegistry');
+    const reports = await getCompactProviderReports();
+    
+    return res.status(200).json({ 
+      status: 'success', 
+      data: reports 
+    });
   } catch (error) {
-    console.error('Providers function error:', error);
-    res.status(500).json({ error: 'Function initialization failed', details: error.message });
+    console.error('Providers error:', error);
+    return res.status(500).json({ 
+      status: 'error', 
+      error: error.message 
+    });
   }
 };
