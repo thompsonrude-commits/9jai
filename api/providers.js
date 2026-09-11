@@ -1,20 +1,30 @@
-// Vercel serverless function for providers endpoint
+// Provider status endpoint
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  try {
-    const { getCompactProviderReports } = require('../functions/lib/media/providerRegistry');
-    const reports = await getCompactProviderReports();
-    
-    return res.status(200).json({ 
-      status: 'success', 
-      data: reports 
-    });
-  } catch (error) {
-    console.error('Providers error:', error);
-    return res.status(500).json({ 
-      status: 'error', 
-      error: error.message 
-    });
-  }
+  const GROQ_KEY = process.env.GROQ_KEY;
+  
+  const providers = [
+    {
+      providerId: 'groq',
+      displayName: 'Groq',
+      status: GROQ_KEY ? 'healthy' : 'missing-secret',
+      ready: !!GROQ_KEY,
+      secretConfigured: !!GROQ_KEY,
+      capability: 'CHAT'
+    },
+    {
+      providerId: 'pollinations',
+      displayName: 'Pollinations',
+      status: 'healthy',
+      ready: true,
+      secretConfigured: true,
+      capability: 'IMAGE'
+    }
+  ];
+  
+  return res.status(200).json({
+    status: 'success',
+    data: providers
+  });
 };

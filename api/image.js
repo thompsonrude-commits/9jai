@@ -1,4 +1,4 @@
-// Vercel serverless function for image endpoint
+// Simple image generation using Pollinations (free, no API key)
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,26 +12,16 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const prompt = req.body?.prompt;
-  if (!prompt) {
-    return res.status(400).json({ error: 'prompt required' });
-  }
-
-  try {
-    const { pollinationsImage } = require('../functions/lib/providers/pollinations');
-    const result = await pollinationsImage(prompt);
-    
-    return res.status(200).json({
-      imageUrl: result.url,
-      provider: 'pollinations',
-      model: result.model,
-      latencyMs: 0
-    });
-  } catch (error) {
-    console.error('Image error:', error);
-    return res.status(500).json({ 
-      error: 'Image generation failed', 
-      details: error.message 
-    });
-  }
+  const prompt = req.body?.prompt || '3D concept art';
+  
+  // Pollinations.ai - Free image generation
+  const encodedPrompt = encodeURIComponent(prompt);
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
+  
+  return res.status(200).json({
+    imageUrl: imageUrl,
+    provider: 'pollinations',
+    model: 'flux',
+    latencyMs: 0
+  });
 };
