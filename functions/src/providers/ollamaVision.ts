@@ -17,7 +17,19 @@ import { isOllamaAvailable } from './ollama';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
-const VISION_MODELS = ['llava', 'llava:13b', 'llava-phi3', 'bakllava'];
+const VISION_MODELS = [
+  'moondream',
+  'moondream:1.8b',
+  'llava',
+  'llava:7b',
+  'llava:13b',
+  'llava-phi3',
+  'bakllava',
+  'qwen2.5vl',
+  'qwen2.5vl:3b',
+  'qwen2.5vl:7b',
+  'llama3.2-vision',
+];
 
 /**
  * Analyze image with Ollama vision model
@@ -70,7 +82,7 @@ export async function ollamaVisionWithFallback(
   const availableModels = await getAvailableVisionModels();
   
   if (availableModels.length === 0) {
-    throw new Error('No Ollama vision models available. Run: ollama pull llava');
+    throw new Error('No Ollama vision models available. Run: ollama pull qwen2.5vl:3b or ollama pull llava:7b');
   }
   
   // Try each model

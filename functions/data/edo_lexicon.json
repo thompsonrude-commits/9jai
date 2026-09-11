@@ -1,0 +1,72 @@
+[
+  {
+    "id": "edo-0001",
+    "word": "oghe",
+    "spellingVariants": ["oghe"],
+    "englishMeaning": "song, music",
+    "edoMeaning": "oghe (music/song)",
+    "grammaticalCategory": "noun",
+    "examples": ["Oghe rekhian (The song is beautiful)."],
+    "source": "edo-nation.net (indexed reference)",
+    "confidence": 0.8,
+    "trainerApproval": "approved",
+    "createdAt": "2026-08-28T00:00:00.000Z",
+    "updatedAt": "2026-08-28T00:00:00.000Z"
+  },
+  {
+    "id": "edo-0002",
+    "word": "ọmwan",
+    "spellingVariants": ["omwan", "omwan"],
+    "englishMeaning": "person, human being",
+    "edoMeaning": "ọmwan (person)",
+    "grammaticalCategory": "noun",
+    "examples": ["Ọmwan ga khian (The person is good)."],
+    "source": "draft lexical seed",
+    "confidence": 0.62,
+    "trainerApproval": "pending_review",
+    "createdAt": "2026-08-28T18:00:00.000Z",
+    "updatedAt": "2026-08-28T18:00:00.000Z"
+  },
+  {
+    "id": "edo-0003",
+    "word": "ẹrhiẹ",
+    "spellingVariants": ["erhie", "erhie"],
+    "englishMeaning": "water",
+    "edoMeaning": "ẹrhiẹ (water)",
+    "grammaticalCategory": "noun",
+    "examples": ["Ẹrhiẹ khian (The water is clean)."],
+    "source": "draft lexical seed",
+    "confidence": 0.58,
+    "trainerApproval": "pending_review",
+    "createdAt": "2026-08-28T18:00:00.000Z",
+    "updatedAt": "2026-08-28T18:00:00.000Z"
+  },
+  {
+    "id": "edo-0004",
+    "word": "ẹvbo",
+    "spellingVariants": ["evbo"],
+    "englishMeaning": "people, community, group",
+    "edoMeaning": "ẹvbo (people/community)",
+    "grammaticalCategory": "noun",
+    "examples": ["Ẹvbo ma khian (The community is good)."],
+    "source": "draft lexical seed",
+    "confidence": 0.55,
+    "trainerApproval": "pending_review",
+    "createdAt": "2026-08-28T18:00:00.000Z",
+    "updatedAt": "2026-08-28T18:00:00.000Z"
+  },
+  {
+    "id": "edo-0005",
+    "word": "ẹsẹ",
+    "spellingVariants": ["ese", "esẹ"],
+    "englishMeaning": "road, way, path",
+    "edoMeaning": "ẹsẹ (road/path)",
+    "grammaticalCategory": "noun",
+    "examples": ["Ẹsẹ gha rhiẹn (The road is long)."],
+    "source": "draft lexical seed",
+    "confidence": 0.52,
+    "trainerApproval": "pending_review",
+    "createdAt": "2026-08-28T18:00:00.000Z",
+    "updatedAt": "2026-08-28T18:00:00.000Z"
+  }
+]

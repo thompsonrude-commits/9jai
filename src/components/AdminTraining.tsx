@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection, addDoc, onSnapshot, deleteDoc, doc,
   serverTimestamp, orderBy, query, updateDoc
@@ -6,7 +7,7 @@ import {
 import { db, uploadAudio } from "../lib/firebase";
 import {
   Sparkles, Mic, Square, Upload, Trash2, Play,
-  X, Plus, Volume2, Edit2, Save, ChevronDown, ChevronUp, Info
+  X, Plus, Volume2, Edit2, Save, ChevronDown, ChevronUp, Info, Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { recordAudioBlob } from "../lib/voice";
@@ -35,6 +36,7 @@ const TYPE_LABELS: Record<TrainingType, { label: string; color: string; desc: st
 const INPUT_CLASS = "w-full bg-[#0F0F0F] border border-[#3A3A3A] rounded-xl px-3 py-2.5 text-sm text-white placeholder-[#4A4A4A] focus:outline-none focus:ring-2 focus:ring-[#5A5A40] focus:border-[#5A5A40] transition-colors";
 
 export default function AdminTraining() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TrainingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -61,14 +63,23 @@ export default function AdminTraining() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 text-white">
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-[#5A5A40] rounded-2xl flex items-center justify-center">
-            <Sparkles size={20} />
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#5A5A40] rounded-2xl flex items-center justify-center">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-serif">AI Training Studio</h1>
+              <p className="text-[10px] text-[#5A5A5A] uppercase tracking-widest">Teach Omwan Edo conversational skills</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-serif">AI Training Studio</h1>
-            <p className="text-[10px] text-[#5A5A5A] uppercase tracking-widest">Teach Omwan Edo conversational skills</p>
-          </div>
+          <button
+            onClick={() => navigate('/admin/agents')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-sm font-bold hover:bg-blue-500/30 transition-all"
+          >
+            <Users size={16} />
+            Manage Agents
+          </button>
         </div>
         <div className="p-4 bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl text-sm text-[#8A8A60] leading-relaxed">
           <Info size={14} className="inline mr-2 text-[#5A5A40]" />

@@ -4,7 +4,7 @@
  * Enables semantic matching without heavy ML dependencies
  */
 
-import { db } from '../firebase';
+import { db, isFirebaseUnavailableError } from '../firebase';
 import { collection, doc, setDoc, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -314,11 +314,17 @@ class KnowledgeEngine {
 
   private async saveToFirestore(entry: KnowledgeEntry): Promise<void> {
     try {
+      const entryToSave: Record<string, unknown> = { ...entry };
+      if (entryToSave.userId === undefined) {
+        delete entryToSave.userId;
+      }
       const collectionName = entry.userId ? 'user_knowledge' : 'global_knowledge';
       const ref = doc(db, collectionName, entry.id);
-      await setDoc(ref, entry);
+      await setDoc(ref, entryToSave);
     } catch (err) {
-      console.warn('[Knowledge] Firestore save error:', err);
+      if (!isFirebaseUnavailableError(err)) {
+        console.warn('[Knowledge] Firestore save error:', err);
+      }
     }
   }
 
@@ -346,7 +352,9 @@ class KnowledgeEngine {
 
       return newEntries.length;
     } catch (err) {
-      console.warn('[Knowledge] Failed to load from Firestore:', err);
+      if (!isFirebaseUnavailableError(err)) {
+        console.warn('[Knowledge] Failed to load from Firestore:', err);
+      }
       return 0;
     }
   }

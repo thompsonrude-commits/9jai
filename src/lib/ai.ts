@@ -5,6 +5,7 @@
 
 import { proxyChat as _proxyChat, proxyImage, proxyVisualOrchestrator } from './aiProxy';
 import { getLocalFallbackResponse } from './fallbackResponses';
+import { buildRequestPlan } from './intelligenceOrchestrator';
 import { knowledgeEngine } from './platform/knowledgeEngine';
 import { trackChatRequest } from './platform/analytics';
 import { recoveryService, QueuedRequest } from './platform/recoveryService';
@@ -77,6 +78,15 @@ async function retryQueuedChatRequest(request: QueuedRequest): Promise<boolean> 
 
 recoveryService.setRetryHandler(retryQueuedChatRequest);
 
+export function requiresExplicitVisualRequest(text?: string): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  const asksForExplanation = /\b(explain|teach|describe|show|illustrate|demonstrate|how does|how to|show me how)\b/i.test(t);
+  const asksForVisual = /\b(diagram|chart|graph|visual|image|picture|illustration|flowchart|timeline|mind map|infographic|schematic|map)\b/i.test(t);
+  const directVisualCommand = /\b(with\s+(?:a\s+)?(?:diagram|chart|graph|visual|image|picture|illustration|infographic)|(?:draw|make|create|show|generate)\s+(?:me\s+)?(?:a\s+)?(?:diagram|chart|graph|visual|image|picture|illustration|infographic)|(?:diagram|chart|graph|visual|image|picture|illustration|infographic)\s+(?:of|for)\b)/i.test(t);
+  return (asksForExplanation && asksForVisual) || directVisualCommand;
+}
+
 export async function* unifiedChatStream(messages: ChatMessageLike[], temperature = 0.7): AsyncGenerator<string> {
   const startTime = Date.now();
 
@@ -113,19 +123,11 @@ export async function* unifiedChatStream(messages: ChatMessageLike[], temperatur
 
     const boundedMessages = buildBoundedContext(enrichedMessages);
 
-    // Detect whether a visual explanation/diagram would materially improve this response
-    function visualExplanationRequired(text?: string): boolean {
-      if (!text) return false;
-      const t = text.toLowerCase();
-      const visualKeywords = ['explain','teach','demonstrate','show','illustrate','visualize','diagram','how','how does','how to','process','structure','anatomy','geometry','math','mathematics','physics','chemistry','biology','engine','mechanism','cycle','flow','water cycle','photosynthesis','heart','diagram','draw','sketch','chart','graph','plot','example','step by step','step-by-step','show me how'];
-      return visualKeywords.some(k => t.includes(k));
-    }
-
     // If visual explanation is needed, attempt to generate a diagram/image first and attach it to the chat context
     let messagesForChat = boundedMessages;
     try {
       const lastUserText = lastUserMessage?.content;
-      if (visualExplanationRequired(lastUserText)) {
+      if (requiresExplicitVisualRequest(lastUserText)) {
         const visualPrompt = `Create a clear labeled diagram or educational visual for: ${lastUserText}. Include labels for major parts and a concise caption describing each part.`;
         const vc = await proxyVisualOrchestrator({ prompt: visualPrompt, selectedLanguage: conversationLanguage, conversationLanguage });
         if (vc && vc.ok && vc.visual && (vc.visual.imageUrl || vc.visual.dataUrl)) {
@@ -145,7 +147,14 @@ export async function* unifiedChatStream(messages: ChatMessageLike[], temperatur
       // Continue without image — fallback to text-only explanation
     }
 
-    const result = await _proxyChat({ messages: messagesForChat, temperature, maxTokens: 1024 });
+    const requestPlan = buildRequestPlan(lastUserMessage?.content ?? '', conversationLanguage);
+    const result = await _proxyChat({
+      messages: messagesForChat,
+      temperature,
+      maxTokens: 1024,
+      preferredProviders: requestPlan.providerOrder,
+      targetLanguage: conversationLanguage,
+    });
     const latency = Date.now() - startTime;
 
     if (result.text) {
@@ -196,8 +205,8 @@ export async function* unifiedChatStream(messages: ChatMessageLike[], temperatur
     const availableLocal = routeOrder.includes('local') || routeOrder.includes('browser') || browserReady;
     const languageCode = getCurrentConversationLanguage();
     const fallbackText = availableLocal
-      ? getLocalFallbackResponse(lastUserMessage?.content ?? 'How can I help?', languageCode)
-      : 'I am in local fallback mode and can still help while connectivity is restored.';
+      ? `Local fallback mode is active. ${getLocalFallbackResponse(lastUserMessage?.content ?? 'How can I help?', languageCode)}`
+      : 'Local fallback mode is active. No live provider responded, so this reply is a clear offline-status message instead of a model answer.';
 
     yield* wordStream(sanitizeUserFacingText(fallbackText));
     return;

@@ -26,4 +26,26 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   imagePrompt?: string;
+  imageRequest?: ImageGenerationRequest;
+  imgType?: 'map' | 'flag' | 'ai' | 'video';
+  imgLabel?: string;
+  mapPlace?: string;
+  isNigeriaMap?: boolean;
+  mapFrom?: string;
+  mapTo?: string;
+  mapMode?: 'search' | 'directions';
+  isNew?: boolean;
+}
+
+export interface ImageGenerationRequest {
+  prompt: string;
+  type?: 'regular' | 'flyer' | 'logo' | 'business-card' | 'letterhead' | 'ad' | 'banner' | 'poster';
+  textOverlay?: {
+    title?: string;
+    subtitle?: string;
+    body?: string;
+    footer?: string;
+  };
+  style?: 'realistic' | 'illustration' | 'professional' | 'artistic' | '3d' | 'minimalist';
+  dimensions?: { width: number; height: number };
 }

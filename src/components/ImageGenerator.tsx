@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Image, X, Download, Share2, Loader, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateImage, downloadImage, shareImage, getImageHistory, saveImageToHistory } from '../lib/imageService';
+import { generateImage as generateImageCanonical } from '../lib/imageClient';
+import { downloadImage, shareImage, getImageHistory, saveImageToHistory } from '../lib/imageService';
+import useProviders from '../lib/useProviders';
 
 interface ImageGeneratorProps {
   onClose: () => void;
@@ -19,6 +21,10 @@ export default function ImageGenerator({ onClose, initialPrompt = '', onImageGen
   const [error, setError] = useState('');
   const [history, setHistory] = useState(getImageHistory());
   const [showHistory, setShowHistory] = useState(false);
+
+  const { providers, loading: providersLoading } = useProviders();
+  const [selectedProvider, setSelectedProvider] = useState<string>('auto');
+  const [allowFallback, setAllowFallback] = useState<boolean>(true);
 
   // Auto-generate if initial prompt is provided
   useEffect(() => {
@@ -38,7 +44,10 @@ export default function ImageGenerator({ onClose, initialPrompt = '', onImageGen
     
     try {
       const enhancedPrompt = `${stylePreset} style, ${prompt.trim()}, ${resolutionPreset}, ${upscale ? 'upscale to maximum visual fidelity' : 'standard resolution'}, cinematic lighting, high detail, realistic textures`;
-      const image = await generateImage(enhancedPrompt);
+      const opts: any = {};
+      if (selectedProvider && selectedProvider !== 'auto') opts.preferredProviders = [selectedProvider];
+      opts.allowFallback = allowFallback;
+      const image = await generateImageCanonical(enhancedPrompt, opts);
       setGeneratedImage(image);
       saveImageToHistory(image);
       setHistory(getImageHistory());
@@ -148,6 +157,34 @@ export default function ImageGenerator({ onClose, initialPrompt = '', onImageGen
                 </label>
               </div>
 
+              {/* Provider selector */}
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="space-y-2 text-sm">
+                  <span className="font-semibold text-gray-900">Provider</span>
+                  <select
+                    value={selectedProvider}
+                    onChange={(e) => setSelectedProvider(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008751]"
+                    disabled={isGenerating || providersLoading}
+                  >
+                    <option value="auto">Auto</option>
+                    {providers.map((p: any) => (
+                      <option key={p.providerId} value={p.providerId}>{p.displayName} — {p.implementationState}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-2 px-3 py-4 border border-gray-300 rounded-lg bg-gray-50 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={allowFallback}
+                    onChange={(e) => setAllowFallback(e.target.checked)}
+                    disabled={isGenerating}
+                    className="h-4 w-4 text-[#008751] border-gray-300 rounded"
+                  />
+                  Allow fallback providers
+                </label>
+              </div>
               {/* Error Message */}
               {error && (
                 <motion.div
@@ -160,24 +197,53 @@ export default function ImageGenerator({ onClose, initialPrompt = '', onImageGen
                 </motion.div>
               )}
 
+              {/* Generated image provider metadata */}
+              {generatedImage?.provider && (
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-700">
+                  <div><strong>Requested provider:</strong> {selectedProvider === 'auto' ? 'Auto' : selectedProvider}</div>
+                  <div><strong>Actual provider:</strong> {generatedImage.provider}</div>
+                  <div><strong>Model:</strong> {generatedImage.model || generatedImage.metadata?.model || 'unknown'}</div>
+                  {generatedImage.metadata?.fallbackFrom && (
+                    <div><strong>Fallback from:</strong> {generatedImage.metadata.fallbackFrom} — <em>{generatedImage.metadata.fallbackReason}</em></div>
+                  )}
+                </div>
+              )}
+
               {/* Generate Button */}
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !prompt.trim()}
-                className="w-full px-6 py-3 bg-[#008751] text-white rounded-lg font-semibold hover:bg-[#00A862] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Image size={18} />
-                    Generate Image
-                  </>
-                )}
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !prompt.trim()}
+                  className="w-full px-6 py-3 bg-[#008751] text-white rounded-lg font-semibold hover:bg-[#00A862] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader size={18} className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Image size={18} />
+                      Generate Image
+                    </>
+                  )}
+                </button>
+
+                {/* Open 3D Viewer Button */}
+                <button
+                  onClick={() => {
+                    // open a minimal 3D viewer modal by dispatching a custom event so the host can show it
+                    const ev = new CustomEvent('open-3d-viewer', { detail: { prompt } });
+                    window.dispatchEvent(ev);
+                  }}
+                  className="w-full px-6 py-3 bg-[#0b6eab] text-white rounded-lg font-semibold hover:bg-[#0e8bd0] transition-all flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-box">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  </svg>
+                  Open 3D Viewer
+                </button>
+              </div>
 
               {/* Generated Image */}
               {generatedImage && (

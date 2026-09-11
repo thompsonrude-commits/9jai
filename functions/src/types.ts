@@ -5,17 +5,24 @@
 // ── Provider identifiers ───────────────────────────────────────────────────
 
 export type ProviderId =
+  | 'native-gpu'
   | 'openrouter'
+  | 'grok'
   | 'groq'
   | 'together'
   | 'huggingface'
-  | 'deepseek'
   | 'mistral'
   | 'tavily'
   | 'ollama'
   | 'pollinations'
   | 'pollinations-fallback'
-  | 'video-worker';
+  | 'gemini'
+  | 'tesseract'
+  | 'google-tts'
+  | 'ollama-vision'
+  | 'deepseek'
+  | 'video-worker'
+  | 'local-audio-mock';
 
 export type TaskType =
   | 'chat'
@@ -42,6 +49,7 @@ export interface AIRequest {
   maxTokens?: number;
   stream?: boolean;
   preferredProviders?: ProviderId[];
+  allowFallback?: boolean;
   sessionId?: string;
   userId?: string;
   // Developer debugging flag (emulator/dev only)

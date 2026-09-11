@@ -3,7 +3,7 @@
  * Provides insights into user behavior, provider performance, and system health
  */
 
-import { db } from '../firebase';
+import { db, isFirebaseUnavailableError } from '../firebase';
 import { collection, addDoc, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -160,18 +160,25 @@ class PlatformAnalytics {
     this.saveToStorage();
 
     try {
+      const sanitizeEvent = (event: AnalyticsEvent) => {
+        const cleaned: Record<string, unknown> = { ...event };
+        Object.keys(cleaned).forEach(key => {
+          if ((cleaned as Record<string, unknown>)[key] === undefined) delete (cleaned as Record<string, unknown>)[key];
+        });
+        return { ...cleaned, timestamp: Timestamp.fromMillis(event.timestamp) };
+      };
+
       // Batch write to Firestore
       const promises = eventsToFlush.map(event =>
-        addDoc(collection(db, 'analytics_events'), {
-          ...event,
-          timestamp: Timestamp.fromMillis(event.timestamp),
-        })
+        addDoc(collection(db, 'analytics_events'), sanitizeEvent(event))
       );
 
       await Promise.all(promises);
       console.log(`[Analytics] Flushed ${eventsToFlush.length} events to Firestore`);
     } catch (err) {
-      console.warn('[Analytics] Failed to flush events:', err);
+      if (!isFirebaseUnavailableError(err)) {
+        console.warn('[Analytics] Failed to flush events:', err);
+      }
       // Re-add events to buffer on failure
       this.eventBuffer.unshift(...eventsToFlush);
       this.saveToStorage();
@@ -228,7 +235,9 @@ class PlatformAnalytics {
         failureReasons,
       };
     } catch (err) {
-      console.warn('[Analytics] Failed to fetch Firestore metrics:', err);
+      if (!isFirebaseUnavailableError(err)) {
+        console.warn('[Analytics] Failed to fetch Firestore metrics:', err);
+      }
       return this.getLocalMetrics();
     }
   }

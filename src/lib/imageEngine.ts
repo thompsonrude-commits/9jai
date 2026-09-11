@@ -1,4 +1,4 @@
-import { generateImage, buildFinalImagePrompt } from './imageService';
+import { generateImage as generateImage, buildFinalImagePrompt } from './imageClient';
 
 export interface ImageEngineResult {
   prompt: string;

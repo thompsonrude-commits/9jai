@@ -20,44 +20,22 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import * as crypto from 'crypto';
 
 const envPath = path.resolve(__dirname, '../../.env');
-if (fs.existsSync(envPath) && process.env.NODE_ENV !== 'production') {
+if (fs.existsSync(envPath) && process.env.NODE_ENV !== 'production' && !process.env.GCLOUD_PROJECT) {
   dotenv.config({ path: envPath, override: false });
 }
 
-import {
-  OPENROUTER_KEY,
-} from './providers/openrouter';
-import { GROQ_KEY } from './providers/groq';
-import { TOGETHER_KEY } from './providers/together';
-import { HF_KEY } from './providers/huggingface';
-import { DEEPSEEK_KEY } from './providers/deepseek';
-import { MISTRAL_KEY } from './providers/mistral';
-import { TAVILY_KEY } from './providers/tavily';
-import { GOOGLE_TTS_KEY, synthesizeNigerianSpeech } from './providers/googleTTS';
-import { tesseractOCR, tesseractOCRWithLayout } from './providers/tesseract';
-import { ollamaVisionWithFallback } from './providers/ollamaVision';
-import { groqVisionWithFallback } from './providers/groq';
-import { getCurrentTime, getTimezoneFromCity, formatTimeNaturally } from './providers/time';
-import { getWeatherWithRetry, formatWeatherNaturally } from './providers/weather';
+// Provider-specific modules are lazy-imported at runtime inside handlers to avoid deployment-time initialization delays.
+// Examples: './providers/openrouter', './providers/grok', './providers/groq', './providers/ollama', './providers/mistral', './providers/tavily', './providers/googleTTS', './providers/tesseract', './providers/ollamaVision', './providers/time', './providers/weather'.
+// They will be dynamically imported where used.
 
-import { routeChat, routeImage, routeTranscribe, routeSearch } from './router';
+// All heavy modules lazy-loaded inside handlers to avoid startup timeout
+// import { routeChat, routeImage, routeTranscribe, routeSearch } from './router';
+import type { ProviderVerificationReport } from './media/providerRegistry';
 import { getAllHealthSnapshots, logRequest } from './logger';
 import { getMemCacheStats } from './cache';
 import { AIRequest, ProviderHealth } from './types';
-import { generateMedia } from './media/engine';
-import { getProviderVerificationReports, type ProviderVerificationReport } from './media/providerRegistry';
-import { aiCertificationEngine } from './media/certificationEngine';
-import { aiRecoveryEngine } from './media/recoveryEngine';
-import { aiIntelligenceLayer } from './media/aiIntelligenceLayer';
-import { unifiedAICore } from './media/unifiedAICore';
-import { creativeIntelligenceEngine } from './media/creativeIntelligenceEngine';
-import { performanceIntelligenceEngine } from './media/performanceIntelligenceEngine';
-import { reasoningExplanationEngine } from './media/reasoningExplanationEngine';
-import { expertIntelligencePlatform } from './media/expertIntelligencePlatform';
-import { cognitiveIntelligenceSystem } from './media/cognitiveIntelligenceSystem';
-import { apesSystem } from './media/apesSystem';
-import { deseSystem } from './media/deseSystem';
-import { submitVideoJob, refreshVideoJob, getVideoWorkerHealth } from './videoWorker';
+import { getStatus as getGenStatus } from './media/generationStatus';
+
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -72,16 +50,259 @@ setGlobalOptions({
 });
 
 // All secrets used across functions
-const ALL_SECRETS = [
-  OPENROUTER_KEY,
-  GROQ_KEY,
-  TOGETHER_KEY,
-  HF_KEY,
-  DEEPSEEK_KEY,
-  MISTRAL_KEY,
-  TAVILY_KEY,
-  GOOGLE_TTS_KEY,
-];
+// During CI / deploy when not all secrets are provisioned in Secret Manager,
+// avoid blocking deployment by omitting secrets from the global onRequest options.
+// Keys are read from process.env at runtime via getSecretValue() in secretHelpers.ts
+// Removing from secrets array avoids Secret Manager billing requirement at deploy time
+const ALL_SECRETS: string[] = [];
+
+// Compact providers endpoint (frontend-friendly summary) — lightweight probes only
+export const v1Providers = onRequest(
+  { cors: false, timeoutSeconds: 30 },
+  async (req, res) => {
+    if (setCorsHeaders(req, res)) return;
+
+    try {
+      const { getCompactProviderReports } = await import('./media/providerRegistry');
+      const reports = await getCompactProviderReports();
+      res.status(200).json({ status: 'success', data: reports });
+    } catch (err: any) {
+      console.error('[v1Providers] Error building provider list:', err);
+      res.status(500).json({ status: 'error', error: err?.message || 'failed to build provider list' });
+    }
+  }
+);
+
+// ── /api/v1/edo/lexicon — minimal Edo lexicon API (lookup / search / list / add)
+export const v1EdoLexicon = onRequest(
+  { cors: false, timeoutSeconds: 30 },
+  async (req, res) => {
+    if (setCorsHeaders(req, res)) return;
+    try {
+      const { lookupByWord, searchByEnglish, listRecent, addEntry } = await import('./lexicon/edoLexiconStore');
+
+      const q = String((req.query && (req.query.q || req.query.word)) || '').trim();
+
+      if (req.method === 'GET') {
+        if (q) {
+          // Try exact word lookup first
+          const byWord = lookupByWord(q);
+          if (byWord) {
+            res.status(200).json({ success: true, data: byWord });
+            return;
+          }
+
+          // Otherwise search English meanings
+          const search = searchByEnglish(q);
+          if (search && search.length) {
+            res.status(200).json({ success: true, data: search });
+            return;
+          }
+
+          res.status(404).json({ success: false, error: 'not_found' });
+          return;
+        }
+
+        // No query — list recent entries
+        const recent = listRecent(50);
+        res.status(200).json({ success: true, data: recent });
+        return;
+      }
+
+      if (req.method === 'POST') {
+        const body = req.body || {};
+        if (!body.word) {
+          res.status(400).json({ success: false, error: 'word required' });
+          return;
+        }
+        const created = addEntry(body);
+        res.status(201).json({ success: true, data: created });
+        return;
+      }
+
+      res.status(405).json({ success: false, error: 'Method not allowed' });
+    } catch (err: any) {
+      console.error('[v1EdoLexicon] Error building lexicon response:', err);
+      res.status(500).json({ success: false, error: err?.message || 'failed' });
+    }
+  }
+);
+
+// ── /api/v1/image/generate — Canonical image generation (honest routing & fallback)
+export const v1ImageGenerate = onRequest(
+  { secrets: ALL_SECRETS, cors: true, timeoutSeconds: 300, memory: '512MiB', invoker: 'public' },
+  async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    // Parse payload robustly
+    let payload: any = req.body;
+    const raw = (req as any).rawBody;
+    if ((!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) && raw) {
+      try {
+        const rawStr = raw instanceof Buffer ? raw.toString('utf8') : String(raw);
+        payload = JSON.parse(rawStr);
+      } catch (parseErr: any) {
+        console.warn('[v1ImageGenerate] Failed to parse rawBody as JSON:', parseErr?.message);
+      }
+    }
+
+    const prompt = payload?.prompt as string | undefined;
+    const preferredProviders = Array.isArray(payload?.preferredProviders) ? payload.preferredProviders.map(String) : undefined;
+    const allowFallback = payload?.allowFallback === undefined ? true : Boolean(payload.allowFallback);
+    const model = payload?.model as string | undefined;
+
+    if (!prompt) {
+      res.status(400).json({ error: 'prompt required' });
+      return;
+    }
+
+    const requestId = genRequestId();
+    const startTime = Date.now();
+
+    try {
+      if (!allowFallback && (!Array.isArray(preferredProviders) || preferredProviders.length === 0)) {
+        res.status(424).json({ success: false, error: 'Fallback is disabled and no preferred image provider is configured.' });
+        return;
+      }
+
+      // If caller explicitly disallowed fallback and provided preferredProviders, pre-check availability to fail fast
+      if (!allowFallback && Array.isArray(preferredProviders) && preferredProviders.length > 0) {
+        try {
+          const { getCompactProviderReports } = await import('./media/providerRegistry');
+          const reports = await getCompactProviderReports();
+          const byId: Record<string, any> = {};
+          for (const r of reports) byId[r.providerId] = r;
+          for (const p of preferredProviders) {
+            const pid = String(p);
+            const rep = byId[pid];
+            if (!rep) {
+              res.status(424).json({ success: false, error: `Provider ${pid} NOT_CONFIGURED` });
+              return;
+            }
+            const state = rep.implementationState || (rep.status ?? '').toUpperCase();
+            const ok = ['READY', 'IMPLEMENTED', 'WIRED'].includes(String(state).toUpperCase());
+            if (!ok) {
+              res.status(424).json({ success: false, error: `Provider ${pid} NOT_CONFIGURED` });
+              return;
+            }
+          }
+        } catch (err: any) {
+          res.status(424).json({ success: false, error: `Preferred provider not available — fallback disabled` });
+          return;
+        }
+      }
+
+      const { aiIntelligenceLayer } = await import('./media/aiIntelligenceLayer');
+      const { generateMedia } = await import('./media/engine');
+
+      // Allow intelligence layer to optimize prompt and determine preferredProviders if not provided
+      const intelligence = await aiIntelligenceLayer.processRequest({ task: 'image', prompt, preferredProviders, model });
+
+      const result = await generateMedia({
+        kind: 'image',
+        prompt: intelligence.optimizedPrompt,
+        preferredProviders: intelligence.preferredProviders ?? preferredProviders,
+        allowFallback,
+      });
+
+      const latencyMs = Date.now() - startTime;
+
+      // Log request
+      logRequest({
+        requestId,
+        task: 'image',
+        provider: result.provider,
+        model: result.model,
+        latencyMs: result.latencyMs ?? latencyMs,
+        cached: false,
+        success: true,
+        timestamp: Date.now(),
+      }).catch(() => {});
+
+      res.status(200).json({
+        success: true,
+        provider: result.provider,
+        model: result.model,
+        latencyMs: result.latencyMs ?? latencyMs,
+        mediaUrl: result.mediaUrl,
+        imageBase64: result.imageBase64,
+        fallbackFrom: result.fallbackFrom,
+        fallbackReason: result.fallbackReason,
+      });
+    } catch (err: any) {
+      console.error('[v1ImageGenerate] Error:', err);
+      // If generateMedia threw because fallback was disabled, preserve honest error
+      if (err?.message && err.message.includes('fallback is disabled')) {
+        res.status(424).json({ success: false, error: err.message });
+      } else {
+        res.status(503).json({ success: false, error: err?.message || 'Image generation failed' });
+      }
+    }
+  }
+);
+
+
+
+// /api/v1/spreadsheet/parse — Parse uploaded XLSX into structured JSON (sheets, headers, columns)
+export const v1SpreadsheetParse = onRequest(
+  { cors: true, timeoutSeconds: 120, memory: '256MiB', invoker: 'public' },
+  async (req, res) => {
+    // CORS preflight handled by setCorsHeaders
+    if (setCorsHeaders(req, res)) return;
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ success: false, error: 'Method not allowed' });
+      return;
+    }
+
+    try {
+      // Accept the file as raw XLSX bytes, or as base64 in JSON body (fileBase64 / base64)
+      const raw = (req as any).rawBody;
+      const contentType = String(req.headers['content-type'] || '').toLowerCase();
+      let buf: Buffer | null = null;
+
+      if (raw && raw.length && (contentType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet') || contentType.includes('application/octet-stream') || contentType.includes('application/vnd.ms-excel') || contentType.includes('binary'))) {
+        buf = raw instanceof Buffer ? raw : Buffer.from(raw);
+      }
+
+      if (!buf) {
+        const payload = req.body || {};
+        const b64 = payload?.fileBase64 || payload?.base64 || payload?.file;
+        if (typeof b64 === 'string' && b64.length > 0) {
+          // If it's a data URL, strip the prefix
+          const match = b64.match(/^data:.*?;base64,(.*)$/s);
+          const justB64 = match ? match[1] : b64;
+          buf = Buffer.from(justB64, 'base64');
+        }
+      }
+
+      if (!buf) {
+        res.status(400).json({ success: false, error: 'No spreadsheet file provided. Provide raw body bytes or fileBase64 in JSON.' });
+        return;
+      }
+
+      const { analyzeWorkbookBuffer } = await import('./providers/spreadsheetParser');
+      const info = analyzeWorkbookBuffer(buf);
+
+      res.status(200).json({ success: true, data: info });
+    } catch (err: any) {
+      console.error('[v1SpreadsheetParse] Error parsing workbook:', err);
+      res.status(500).json({ success: false, error: err?.message || 'failed to parse workbook' });
+    }
+  }
+);
 
 // Simple in-memory stores for Version 1.0 API compatibility
 interface KnowledgeDocumentRecord {
@@ -131,6 +352,42 @@ function extractPathParam(req: any, prefix: string): string | null {
   const match = candidate.match(regex);
   return match ? decodeURIComponent(match[1]) : null;
 }
+
+// ── Chart generation endpoint ───────────────────────────────────────────────
+export const v1ChartGenerate = onRequest(
+  { cors: true, timeoutSeconds: 120, memory: '256MiB', invoker: 'public' },
+  async (req, res) => {
+    if (setCorsHeaders(req, res)) return;
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ success: false, error: 'Method not allowed' }); return; }
+
+    try {
+      const raw = (req as any).rawBody;
+      let payload: any = req.body;
+      if ((!payload || Object.keys(payload).length === 0) && raw) {
+        try {
+          const rawStr = raw instanceof Buffer ? raw.toString('utf8') : String(raw);
+          payload = JSON.parse(rawStr);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!payload || !payload.labels || !payload.values) {
+        res.status(400).json({ success: false, error: 'labels and values required' });
+        return;
+      }
+
+      const { generateChartSVG } = await import('./chartGenerator');
+      const chart = generateChartSVG({ type: payload.type, labels: payload.labels, values: payload.values, width: payload.width, height: payload.height, title: payload.title });
+      const svgB64 = Buffer.from(chart.svg, 'utf8').toString('base64');
+      res.status(200).json({ success: true, svgBase64: svgB64, contentType: chart.contentType, svg: chart.svg });
+    } catch (err: any) {
+      console.error('[v1ChartGenerate] Error:', err);
+      res.status(500).json({ success: false, error: err?.message || 'chart generation failed' });
+    }
+  }
+);
 
 // ── CORS helper ────────────────────────────────────────────────────────────
 
@@ -270,6 +527,7 @@ export const aiChat = onRequest(
     const sessionId = req.headers['x-session-id'] as string | undefined;
 
     try {
+      const { routeChat } = await import('./router');
       const result = await routeChat({
         ...body,
         task: 'chat',
@@ -353,6 +611,7 @@ export const aiStream = onRequest(
     try {
       // Use non-streaming route but emit chunks as SSE
       // (True streaming from providers requires HTTP/2 pass-through — use non-streaming for now)
+      const { routeChat } = await import('./router');
       const result = await routeChat({
         ...body,
         task: 'chat',
@@ -406,52 +665,269 @@ export const aiStream = onRequest(
 // ── /ai/image — image generation ──────────────────────────────────────────
 
 export const aiImage = onRequest(
-  { secrets: ALL_SECRETS, cors: false, timeoutSeconds: 300, memory: '512MiB' },
+  { secrets: ALL_SECRETS, cors: true, timeoutSeconds: 60, memory: '256MiB', invoker: 'public' },
   async (req, res) => {
-    if (setCorsHeaders(req, res)) return;
+    // Allow all origins
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
 
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' });
       return;
     }
 
-    const { prompt, preferredProviders } = req.body as AIRequest;
+    // Robust body parsing: some frontends or proxies may not provide a parsed JSON body
+    let payload: any = req.body;
+    const raw = (req as any).rawBody;
+    if ((!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) && raw) {
+      try {
+        const rawStr = raw instanceof Buffer ? raw.toString('utf8') : String(raw);
+        payload = JSON.parse(rawStr);
+      } catch (parseErr: any) {
+        console.warn('[aiImage] Failed to parse rawBody as JSON:', parseErr?.message);
+      }
+    }
+
+    const prompt = payload?.prompt as string | undefined;
+
     if (!prompt) {
       res.status(400).json({ error: 'prompt required' });
       return;
     }
 
     const requestId = genRequestId();
+    const startTime = Date.now();
 
     try {
-      const result = await routeImage({ task: 'image', prompt, preferredProviders });
+      // Direct Pollinations call - fast and simple
+      const { pollinationsImage } = await import('./providers/pollinations');
+      const result = await pollinationsImage(prompt);
+      const latencyMs = Date.now() - startTime;
 
       logRequest({
         requestId,
         task: 'image',
-        provider: result.provider,
+        provider: 'pollinations',
         model: result.model,
-        latencyMs: result.latencyMs,
+        latencyMs,
         cached: false,
         success: true,
         timestamp: Date.now(),
       }).catch(() => {});
 
-      // Return both URL and base64 — frontend uses base64 for instant render
       res.status(200).json({
-        imageUrl: result.imageBase64 ?? result.imageUrl,
-        imageBase64: result.imageBase64,
-        directUrl: result.imageUrl,
-        provider: result.provider,
+        imageUrl: result.url,
+        provider: 'pollinations',
         model: result.model,
-        latencyMs: result.latencyMs,
+        latencyMs,
       });
     } catch (err: any) {
       console.error('[aiImage] Error:', err);
-      res.status(500).json({ error: 'Image generation failed' });
+      res.status(500).json({ error: 'Image generation failed', details: err?.message });
     }
   }
 );
+
+// ── /api/images/generate — Canonical image generation endpoint (ComfyUI-aware)
+
+export const imagesGenerate = onRequest(
+  { secrets: ALL_SECRETS, cors: true, timeoutSeconds: 300, memory: '512MiB', invoker: 'public' },
+  async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    const body = req.body as any;
+    const prompt = body?.prompt as string | undefined;
+    if (!prompt) {
+      res.status(400).json({ error: 'prompt required' });
+      return;
+    }
+
+    const comfyMode = (process.env.COMFYUI_ENABLED === 'true') || (process.env.IMAGE_PROVIDER === 'comfyui');
+
+    try {
+      // Authenticate user via Firebase ID token
+      const authHeader = req.headers.authorization || req.headers.Authorization || '';
+      let uid: string | null = null;
+      if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        const idToken = authHeader.slice(7).trim();
+        try {
+          const decoded = await admin.auth().verifyIdToken(idToken);
+          uid = decoded.uid;
+        } catch (verifyErr: any) {
+          console.warn('[imagesGenerate] Invalid ID token:', verifyErr?.message || verifyErr);
+          res.status(401).json({ error: 'Invalid authentication token' });
+          return;
+        }
+      } else {
+        res.status(401).json({ error: 'Authorization header required' });
+        return;
+      }
+
+      if (comfyMode) {
+        // Use ComfyUI authoritative flow — do NOT fall back to other providers
+        const comfyAdapter = await import('./media/comfyAdapter');
+        const generation = await comfyAdapter.generateImage({
+          prompt: prompt,
+          width: body.width || 1024,
+          height: body.height || 1024,
+          steps: body.steps || 20,
+          cfg_scale: body.cfg || 7.5,
+          seed: body.seed || -1,
+        }, uid);
+
+        // Return generationId immediately — client polls status
+        res.status(200).json({ success: true, provider: 'comfyui', generationId: generation.generationId });
+        return;
+      }
+
+      // Non-Comfy mode: fall back to legacy aiImage endpoint behavior (pollinations quick path)
+      const { pollinationsImage } = await import('./providers/pollinations');
+      const result = await pollinationsImage(prompt);
+
+      res.status(200).json({ success: true, provider: 'pollinations', imageUrl: result.url, model: result.model });
+    } catch (err: any) {
+      console.error('[imagesGenerate] Error:', err);
+      if ((process.env.COMFYUI_ENABLED === 'true') || (process.env.IMAGE_PROVIDER === 'comfyui')) {
+        // Per spec: honest failure when ComfyUI mode enabled
+        res.status(503).json({ success: false, provider: 'comfyui', error: 'ComfyUI image generation is currently unavailable.' });
+      } else {
+        res.status(500).json({ success: false, provider: 'unknown', error: err?.message || 'Image generation failed' });
+      }
+    }
+  }
+);
+
+// ── /api/images/status/:generationId — Check generation status
+export const imagesStatus = onRequest({ cors: true }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const route = String(req.path ?? req.url ?? req.originalUrl ?? '');
+  const parts = route.split('/').filter(Boolean);
+  const id = parts[parts.length - 1];
+  if (!id) {
+    res.status(400).json({ error: 'generationId required in path' });
+    return;
+  }
+
+  try {
+    // Authenticate user via Firebase ID token
+    const authHeader = req.headers.authorization || req.headers.Authorization || '';
+    let uid: string | null = null;
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      const idToken = authHeader.slice(7).trim();
+      try {
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        uid = decoded.uid;
+      } catch (verifyErr: any) {
+        console.warn('[imagesStatus] Invalid ID token:', verifyErr?.message || verifyErr);
+        res.status(401).json({ error: 'Invalid authentication token' });
+        return;
+      }
+    } else {
+      res.status(401).json({ error: 'Authorization header required' });
+      return;
+    }
+
+    const status = await getGenStatus(id);
+    if (!status) {
+      res.status(404).json({ error: 'generation not found' });
+      return;
+    }
+
+    // Only allow owner or master admin to view
+    if ((status as any).userId && (status as any).userId !== uid) {
+      // Allow master admin by email
+      const user = await admin.auth().getUser(uid);
+      const isMasterAdmin = user.email === process.env.MASTER_ADMIN_EMAIL;
+      if (!isMasterAdmin) {
+        res.status(403).json({ error: 'forbidden' });
+        return;
+      }
+    }
+
+    res.status(200).json({ success: true, data: status });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'failed' });
+  }
+});
+
+// ── /api/ai/image/process-next — Trigger processing of the next queued job (ADMIN)
+export const aiImageProcessNext = onRequest({ secrets: ALL_SECRETS, cors: true, timeoutSeconds: 300 }, async (req, res) => {
+  if (setCorsHeaders(req, res)) return;
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const adminKey = process.env.ADMIN_API_KEY;
+  const provided = req.headers['x-admin-secret'] || req.query?.adminKey || req.body?.adminKey;
+  if (!adminKey || String(provided) !== String(adminKey)) {
+    res.status(401).json({ error: 'admin auth required' });
+    return;
+  }
+
+  try {
+    const comfyAdapter = await import('./media/comfyAdapter');
+    const jobQueue = await import('./media/jobQueue');
+    const processed = await comfyAdapter.processNextJob();
+    const stats = await jobQueue.getQueueStats();
+    res.status(200).json({ ok: true, processed, queue: stats });
+  } catch (err: any) {
+    console.error('[aiImageProcessNext] Error:', err);
+    res.status(500).json({ error: err?.message || 'processing failed' });
+  }
+});
+
+// ── /api/ai/image/health — Composite health for image engine
+export const aiImageHealth = onRequest({ secrets: ALL_SECRETS, cors: true, timeoutSeconds: 30 }, async (req, res) => {
+  if (setCorsHeaders(req, res)) return;
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const comfyAdapter = await import('./media/comfyAdapter');
+    const jobQueue = await import('./media/jobQueue');
+    const health = await comfyAdapter.healthCheck();
+    const queueStats = await jobQueue.getQueueStats();
+    res.status(200).json({ ok: true, comfy: health, queue: queueStats });
+  } catch (err: any) {
+    console.error('[aiImageHealth] Error:', err);
+    res.status(500).json({ error: err?.message || 'health check failed' });
+  }
+});
+
 
 // ── /ai/video — shared media orchestration path ───────────────────────────
 
@@ -474,6 +950,9 @@ export const aiVideo = onRequest(
     const requestId = genRequestId();
 
     try {
+      // Lazy-load intelligence layer and media engine to avoid heavy top-level imports
+      const { aiIntelligenceLayer } = await import('./media/aiIntelligenceLayer');
+      const { generateMedia } = await import('./media/engine');
       const intelligence = await aiIntelligenceLayer.processRequest({
         task: 'video',
         prompt,
@@ -513,6 +992,31 @@ export const aiVideo = onRequest(
 );
 
 // ── Version 1.0 compatibility: /api/v1/document and /api/v1/ocr ─────────────
+
+// Debug helper: echo request headers and body (useful for diagnosing malformed requests)
+export const debugEcho = onRequest({ cors: false, timeoutSeconds: 60 }, async (req, res) => {
+  if (setCorsHeaders(req, res)) return;
+
+  // Try parsed body first, fall back to rawBody
+  let parsed: any = req.body;
+  const raw = (req as any).rawBody;
+  if ((!parsed || (typeof parsed === 'object' && Object.keys(parsed).length === 0)) && raw) {
+    try {
+      parsed = JSON.parse(raw instanceof Buffer ? raw.toString('utf8') : String(raw));
+    } catch (err) {
+      // ignore parse errors - we'll still return raw preview
+    }
+  }
+
+  console.info('[debugEcho] headers:', JSON.stringify(req.headers || {}));
+  console.info('[debugEcho] parsed keys:', parsed && typeof parsed === 'object' ? Object.keys(parsed) : typeof parsed);
+
+  res.status(200).json({
+    headers: req.headers || {},
+    parsedBody: parsed,
+    rawPreview: raw ? (raw instanceof Buffer ? raw.toString('utf8').slice(0, 200) : String(raw).slice(0, 200)) : null,
+  });
+});
 
 export const v1Document = onRequest(
   { secrets: ALL_SECRETS, cors: false, timeoutSeconds: 120, memory: '256MiB' },
@@ -561,6 +1065,7 @@ export const v1Document = onRequest(
 
 async function performOcrExtraction(imageUrl: string, language?: string): Promise<{ rawText: string; pages: unknown[] }> {
   try {
+    const { tesseractOCR } = await import('./providers/tesseract');
     const result = await tesseractOCR(imageUrl, language || 'eng');
     const rawText = result.text.trim();
     if (!rawText) throw new Error('No readable text found');
@@ -616,33 +1121,35 @@ export const v1Ocr = onRequest(
     try {
       // Try Tesseract first (FREE, no API key)
       if (layout) {
-        const result = await tesseractOCRWithLayout(imageUrl, language || 'eng');
-        res.status(200).json({
-          status: 'success',
-          data: {
-            text: result.text,
-            confidence: result.confidence,
-            provider: 'tesseract',
-            layout: {
-              pages: [{
-                pageNumber: 1,
-                words: result.words,
-                lines: result.lines,
-                paragraphs: result.paragraphs,
-              }],
-            },
+      const { tesseractOCRWithLayout } = await import('./providers/tesseract');
+      const result = await tesseractOCRWithLayout(imageUrl, language || 'eng');
+      res.status(200).json({
+        status: 'success',
+        data: {
+          text: result.text,
+          confidence: result.confidence,
+          provider: 'tesseract',
+          layout: {
+            pages: [{
+              pageNumber: 1,
+              words: result.words,
+              lines: result.lines,
+              paragraphs: result.paragraphs,
+            }],
           },
-        });
+        },
+      });
       } else {
-        const result = await tesseractOCR(imageUrl, language || 'eng');
-        res.status(200).json({
-          status: 'success',
-          data: {
-            text: result.text,
-            confidence: result.confidence,
-            provider: 'tesseract',
-          },
-        });
+      const { tesseractOCR } = await import('./providers/tesseract');
+      const result = await tesseractOCR(imageUrl, language || 'eng');
+      res.status(200).json({
+        status: 'success',
+        data: {
+          text: result.text,
+          confidence: result.confidence,
+          provider: 'tesseract',
+        },
+      });
       }
     } catch (err: any) {
       console.error('[v1Ocr] Tesseract failed, trying OpenRouter fallback:', err);
@@ -668,31 +1175,6 @@ export const v1Ocr = onRequest(
   }
 );
 
-export const v1ImageGenerate = onRequest(
-  { secrets: ALL_SECRETS, cors: false, timeoutSeconds: 300, memory: '512MiB' },
-  async (req, res) => {
-    if (setCorsHeaders(req, res)) return;
-
-    if (req.method !== 'POST') {
-      res.status(405).json({ status: 'error', error: 'Method not allowed' });
-      return;
-    }
-
-    const { prompt, style, size } = req.body as { prompt?: string; style?: string; size?: string };
-    if (!prompt) {
-      res.status(400).json({ status: 'error', error: 'prompt required' });
-      return;
-    }
-
-    try {
-      const result = await routeImage({ task: 'image', prompt, preferredProviders: undefined });
-      res.status(200).json({ status: 'success', data: { imageUrl: result.imageUrl ?? result.imageBase64 ?? '', metadata: { provider: result.provider, model: result.model, style, size } } });
-    } catch (err: any) {
-      console.error('[v1ImageGenerate] Error:', err);
-      res.status(500).json({ status: 'error', error: 'Image generation failed' });
-    }
-  }
-);
 
 export const v1VideoProcess = onRequest(
   { secrets: ALL_SECRETS, cors: false, timeoutSeconds: 300, memory: '512MiB' },
@@ -714,6 +1196,7 @@ export const v1VideoProcess = onRequest(
 
     try {
       const requestPrompt = sourceUrl && instructions ? `${instructions} ${sourceUrl}` : textPrompt || '';
+      const { submitVideoJob } = await import('./videoWorker');
       const job = await submitVideoJob({
         prompt: requestPrompt.slice(0, 4000),
         image: imageDataUrl || sourceUrl,
@@ -744,6 +1227,7 @@ export const v1VideoStatus = onRequest(
       return;
     }
     try {
+      const { refreshVideoJob } = await import('./videoWorker');
       const job = await refreshVideoJob(jobId);
       res.status(200).json({ status: job.status, data: job });
     } catch (error) {
@@ -760,6 +1244,7 @@ export const v1VideoWorkerHealth = onRequest(
       res.status(405).json({ status: 'error', error: 'Method not allowed' });
       return;
     }
+    const { getVideoWorkerHealth } = await import('./videoWorker');
     res.status(200).json(await getVideoWorkerHealth());
   }
 );
@@ -912,6 +1397,7 @@ export const aiTranscribe = onRequest(
         audioBuffer = Buffer.from(audioBase64 as string, 'base64');
       }
 
+      const { routeTranscribe } = await import('./router');
       const result = await routeTranscribe(audioBuffer, resolvedMimeType, language);
 
       logRequest({
@@ -952,6 +1438,7 @@ export const aiSearch = onRequest(
     }
 
     try {
+      const { routeSearch } = await import('./router');
       const result = await routeSearch(query);
       res.status(200).json(result);
     } catch (err: any) {
@@ -981,6 +1468,7 @@ export const aiTTS = onRequest(
 
     try {
       const voiceId = assistantId || voice || 'nosa';
+      const { synthesizeNigerianSpeech } = await import('./providers/googleTTS');
       const result = await synthesizeNigerianSpeech(text, voiceId);
 
       if (!result) {
@@ -1010,6 +1498,20 @@ export const aiHealth = onRequest(
 
     const snapshots = getAllHealthSnapshots();
     const cacheStats = getMemCacheStats();
+    // Lazy-load monitoring and intelligence modules to avoid startup cost
+    const { getProviderVerificationReports } = await import('./media/providerRegistry');
+    const { aiCertificationEngine } = await import('./media/certificationEngine');
+    const { aiRecoveryEngine } = await import('./media/recoveryEngine');
+    const { aiIntelligenceLayer } = await import('./media/aiIntelligenceLayer');
+    const { creativeIntelligenceEngine } = await import('./media/creativeIntelligenceEngine');
+    const { performanceIntelligenceEngine } = await import('./media/performanceIntelligenceEngine');
+    const { reasoningExplanationEngine } = await import('./media/reasoningExplanationEngine');
+    const { cognitiveIntelligenceSystem } = await import('./media/cognitiveIntelligenceSystem');
+    const { apesSystem } = await import('./media/apesSystem');
+    const { deseSystem } = await import('./media/deseSystem');
+    const { unifiedAICore } = await import('./media/unifiedAICore');
+    const { expertIntelligencePlatform } = await import('./media/expertIntelligencePlatform');
+
     const providerRegistry = await getProviderVerificationReports();
     const readiness = buildReadinessPayload(providerRegistry);
     const certificationReport = aiCertificationEngine.certifyAll();
@@ -1101,6 +1603,7 @@ export const aiReady = onRequest(
       return;
     }
 
+    const { getProviderVerificationReports } = await import('./media/providerRegistry');
     const providerRegistry = await getProviderVerificationReports();
     const readiness = buildReadinessPayload(providerRegistry);
     res.status(readiness.status === 'ready' ? 200 : 503).json(readiness);
@@ -1121,12 +1624,13 @@ export const aiReplay = onRequest(
     }
 
     try {
-      const replay = performanceIntelligenceEngine.getReplay(requestId);
-      res.status(200).json(replay);
-    } catch (err: any) {
-      res.status(404).json({ error: 'Replay trace not found', message: err?.message ?? String(err) });
-    }
-  }
+     const { performanceIntelligenceEngine } = await import('./media/performanceIntelligenceEngine');
+     const replay = performanceIntelligenceEngine.getReplay(requestId);
+     res.status(200).json(replay);
+   } catch (err: any) {
+     res.status(404).json({ error: 'Replay trace not found', message: err?.message ?? String(err) });
+   }
+ }
 );
 
 // ── /ai/explanation — Internal explanation lookup for admin diagnostics ───────────────────
@@ -1143,6 +1647,7 @@ export const aiExplanation = onRequest(
     }
 
     try {
+      const { reasoningExplanationEngine } = await import('./media/reasoningExplanationEngine');
       const report = reasoningExplanationEngine.getExplanation(requestId);
       res.status(200).json({
         ok: true,
@@ -1256,7 +1761,9 @@ export const v1VisualOrchestrator = onRequest(
       // If a visual is required and no user-supplied image was provided, ask the engine to generate one
       if (visualRequired && !imageBase64 && !imageUrl) {
         const genPrompt = prompt || text || `Generate an educational ${visualType}`;
-        const result = await generateMedia({ kind: 'image', prompt: genPrompt, preferredProviders });
+      try {
+        const mod = await import('./media/engine');
+        const result = await mod.generateMedia({ kind: 'image', prompt: genPrompt, preferredProviders });
         providerOut = result.provider as string;
         modelOut = result.model || null;
 
@@ -1278,6 +1785,9 @@ export const v1VisualOrchestrator = onRequest(
             imageUrlOut = imageDataUrl;
           }
         }
+      } catch (genErr: any) {
+        console.warn('[v1VisualOrchestrator] Image generation failed:', genErr?.message ?? genErr);
+      }
       } else if (imageBase64) {
         const base64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
         imageDataUrl = `data:image/png;base64,${base64}`;
@@ -1409,20 +1919,22 @@ export const aiVision = onRequest(
     try {
       // Prefer a reachable local open-source model, then use configured free-tier adapters.
       try {
+        const { ollamaVisionWithFallback } = await import('./providers/ollamaVision');
         const result = await ollamaVisionWithFallback(normalizedImage, analysisPrompt);
         res.status(200).json({ text: result.text, model: result.model, provider: 'ollama' });
         return;
       } catch (ollamaErr: any) {
-        console.warn('[aiVision] Ollama unavailable, trying Groq:', ollamaErr.message);
+        console.warn('[aiVision] Ollama unavailable, trying Groq:', ollamaErr?.message ?? ollamaErr);
       }
 
       try {
+        const { groqVisionWithFallback } = await import('./providers/groq');
         const result = await groqVisionWithFallback(normalizedImage, analysisPrompt);
         res.status(200).json({ text: result.text, model: result.model, provider: 'groq' });
         return;
       } catch (groqErr: any) {
-        console.warn('[aiVision] Groq vision failed:', groqErr.message);
-        freeVisionError = groqErr.message;
+        console.warn('[aiVision] Groq vision failed:', groqErr?.message ?? groqErr);
+        freeVisionError = groqErr?.message ?? String(groqErr);
       }
 
       try {
@@ -1431,8 +1943,8 @@ export const aiVision = onRequest(
         res.status(200).json({ text: result.text, model: result.model, provider: 'huggingface' });
         return;
       } catch (huggingfaceErr: any) {
-        console.warn('[aiVision] HuggingFace vision failed:', huggingfaceErr.message);
-        freeVisionError = huggingfaceErr.message;
+        console.warn('[aiVision] HuggingFace vision failed:', huggingfaceErr?.message ?? huggingfaceErr);
+        freeVisionError = huggingfaceErr?.message ?? String(huggingfaceErr);
       }
 
       console.error('[aiVision] All free vision providers failed');
@@ -1469,6 +1981,8 @@ export const aiTime = onRequest(
     const { timezone, city } = req.method === 'POST' ? req.body : req.query;
     
     try {
+      // Lazy-load time helpers
+      const { getTimezoneFromCity, getCurrentTime, formatTimeNaturally } = await import('./providers/time');
       // If city provided, convert to timezone
       const tz = city ? getTimezoneFromCity(city as string) : (timezone as string || 'Africa/Lagos');
       
@@ -1504,16 +2018,17 @@ export const aiWeather = onRequest(
 
     const { location, city } = req.method === 'POST' ? req.body : req.query;
     const searchLocation = (location || city) as string;
-    
+     
     if (!searchLocation) {
       res.status(400).json({ error: 'location or city parameter required' });
       return;
     }
 
     try {
+      const { getWeatherWithRetry, formatWeatherNaturally } = await import('./providers/weather');
       const weatherData = await getWeatherWithRetry(searchLocation, 2);
       const naturalText = formatWeatherNaturally(weatherData);
-      
+       
       res.status(200).json({
         ...weatherData,
         naturalText,
@@ -1528,3 +2043,15 @@ export const aiWeather = onRequest(
     }
   }
 );
+
+// Canonical v1 aliases for the active provider and capability routes. These keep the API
+// stable for frontend callers without breaking the existing /ai/* architecture.
+export const v1Chat = aiChat;
+export const v1Stream = aiStream;
+export const v1Image = aiImage;
+export const v1Search = aiSearch;
+export const v1Transcribe = aiTranscribe;
+export const v1Video = aiVideo;
+export const v1Vision = aiVision;
+export const v1TTS = aiTTS;
+export const v1Health = aiHealth;

@@ -17,26 +17,21 @@
 import { AIRequest, AIResponse, ProviderId, RoutingDecision, TaskType } from './types';
 import { isProviderAvailable, recordProviderSuccess, recordProviderFailure, startTimer, getProviderHealth } from './logger';
 import { getCached, setCached, buildCacheKey } from './cache';
-import { hfChat } from './providers/huggingface';
-import { groqChatWithFallback } from './providers/groq';
-import { ollamaChatWithFallback, isOllamaAvailable } from './providers/ollama';
 import { normalizeChatMessages } from './providerPayload';
+// Provider implementations are lazy-loaded inside execution paths to minimize cold-start time.
+// They are imported dynamically when needed, e.g. await import('./providers/ollama')
+// DuckDuckGo search provider is lightweight and kept local; other heavy providers are dynamic.
 import { duckduckgoSearchWithRetry, googleNewsSearch, buildSearchContext as buildDDGContext } from './providers/duckduckgo';
 import { ChatMessage } from './types';
-import { generateMedia } from './media/engine';
 import { aiIntelligenceLayer } from './media/aiIntelligenceLayer';
-import { creativeIntelligenceEngine } from './media/creativeIntelligenceEngine';
-import { reasoningExplanationEngine } from './media/reasoningExplanationEngine';
-import { expertIntelligencePlatform } from './media/expertIntelligencePlatform';
-import { cognitiveIntelligenceSystem } from './media/cognitiveIntelligenceSystem';
-import { unifiedAICore } from './media/unifiedAICore';
+// Heavy media/intelligence modules are lazy-loaded inside handlers to reduce cold-start time
 
 // ── Provider priority chains per task ─────────────────────────────────────
 // Only providers with a free/local path are active in production.
-// Ollama is preferred when self-hosted; Groq is a hosted free-tier path;
-// Hugging Face remains a fallback when its token has inference permission.
-const CHAT_CHAIN: ProviderId[] = ['ollama', 'groq', 'huggingface'];
-const IMAGE_CHAIN: ProviderId[] = ['pollinations'];
+// Ollama is preferred when self-hosted; Groq is a hosted free-tier path (FREE, no auth issues);
+// Hugging Face removed from chain due to auth failures (403).
+const CHAT_CHAIN: ProviderId[] = ['ollama', 'grok', 'groq'];
+const IMAGE_CHAIN: ProviderId[] = ['native-gpu', 'openrouter', 'pollinations'];
 const TRANSCRIBE_CHAIN: ProviderId[] = [];
 const SEARCH_CHAIN: ProviderId[] = ['pollinations'];
 
@@ -155,10 +150,26 @@ async function executeChatProvider(
   maxTokens: number
 ): Promise<{ text: string; model: string; tokensUsed?: number }> {
   switch (provider) {
-    case 'ollama':     return ollamaChatWithFallback(messages, temperature, maxTokens);
-    case 'groq':       return groqChatWithFallback(messages, temperature, maxTokens);
-    case 'huggingface':return hfChat(messages, undefined, temperature, maxTokens);
-    default:           return hfChat(messages, temperature === undefined ? undefined : undefined, temperature, maxTokens);
+    case 'grok': {
+      const mod = await import('./providers/grok');
+      return mod.grokChatWithFallback(messages, temperature, maxTokens);
+    }
+    case 'ollama': {
+      const mod = await import('./providers/ollama');
+      return mod.ollamaChatWithFallback(messages, temperature, maxTokens);
+    }
+    case 'groq': {
+      const mod = await import('./providers/groq');
+      return mod.groqChatWithFallback(messages, temperature, maxTokens);
+    }
+    case 'huggingface': {
+      const mod = await import('./providers/huggingface');
+      return mod.hfChat(messages, undefined, temperature, maxTokens);
+    }
+    default: {
+      const mod = await import('./providers/huggingface');
+      return mod.hfChat(messages, undefined, temperature, maxTokens);
+    }
   }
 }
 
@@ -226,9 +237,35 @@ export async function routeChat(req: AIRequest): Promise<AIResponse> {
   const lastUser = [...messages].reverse().find(m => m.role === 'user');
   const promptSeed = lastUser?.content ?? req.prompt ?? '';
 
-  // For chat: pass messages through untouched.
-  // For image/video tasks: aiIntelligenceLayer adds quality signals (correct for images).
-  const enrichedMessages: ChatMessage[] = messages;
+  // For chat: consult intelligence layer for language-specific augmentation (Edo lexicon, etc.)
+  let enrichedMessages: ChatMessage[] = messages;
+  let mergedPreferredProviders: ProviderId[] | undefined = req.preferredProviders;
+  try {
+    const aiLayer = await aiIntelligenceLayer.processRequest({
+      prompt: promptSeed,
+      preferredProviders: req.preferredProviders,
+      targetLanguage: (req as any).targetLanguage,
+    });
+
+    if (aiLayer?.optimizedPrompt && aiLayer.optimizedPrompt.trim() !== '') {
+      const sysIdx = enrichedMessages.findIndex(m => m.role === 'system');
+      if (sysIdx >= 0) {
+        enrichedMessages = enrichedMessages.slice();
+        enrichedMessages[sysIdx] = {
+          ...enrichedMessages[sysIdx],
+          content: `${enrichedMessages[sysIdx].content}\n\n${aiLayer.optimizedPrompt}`,
+        };
+      } else {
+        enrichedMessages = [{ role: 'system', content: aiLayer.optimizedPrompt }, ...enrichedMessages];
+      }
+    }
+
+    mergedPreferredProviders = Array.from(new Set([...(aiLayer?.preferredProviders ?? []), ...(req.preferredProviders ?? [])]));
+  } catch (err) {
+    console.warn('[Router] aiIntelligenceLayer failed:', err);
+    enrichedMessages = messages;
+    mergedPreferredProviders = req.preferredProviders;
+  }
 
   // Cache check
   const cacheKey = buildCacheKey('chat', promptSeed, req.model);
@@ -292,7 +329,7 @@ export async function routeChat(req: AIRequest): Promise<AIResponse> {
   // Build provider chain
   const chain = buildProviderChain(
     'chat',
-    req.preferredProviders,
+    mergedPreferredProviders,
     sanitizedMessages,
   );
 
@@ -375,7 +412,7 @@ export async function routeChat(req: AIRequest): Promise<AIResponse> {
   }
 
   // All providers failed — prepare fallback with debug info when requested
-  const fallbackText = 'Network busy right now. Please try again in a few moments.';
+  const fallbackText = 'Local fallback mode is active: no live AI provider responded. Please try again in a few moments.';
   const fallbackResponse: any = {
     text: fallbackText,
     provider: 'openrouter',
@@ -410,7 +447,17 @@ export async function routeImage(req: AIRequest): Promise<{
   provider: ProviderId;
   model: string;
   latencyMs: number;
+  fallbackFrom?: ProviderId | string;
+  fallbackReason?: string;
 }> {
+  // Lazy-load heavy media/intelligence modules to avoid blocking module initialization
+  const { unifiedAICore } = await import('./media/unifiedAICore');
+  const { aiIntelligenceLayer } = await import('./media/aiIntelligenceLayer');
+  const { creativeIntelligenceEngine } = await import('./media/creativeIntelligenceEngine');
+  const { expertIntelligencePlatform } = await import('./media/expertIntelligencePlatform');
+  const { reasoningExplanationEngine } = await import('./media/reasoningExplanationEngine');
+  const { generateMedia } = await import('./media/engine');
+
   const unifiedPlan = (await unifiedAICore.planRequest({
     task: req.task,
     prompt: req.prompt,
@@ -515,6 +562,8 @@ export async function routeImage(req: AIRequest): Promise<{
     provider: result.provider as ProviderId,
     model: result.model,
     latencyMs: result.latencyMs,
+    fallbackFrom: (result as any).fallbackFrom,
+    fallbackReason: (result as any).fallbackReason,
   };
 }
 
@@ -526,6 +575,9 @@ export async function routeTranscribe(
   language?: string
 ): Promise<{ text: string; provider: ProviderId; latencyMs: number }> {
   const timer = startTimer();
+  // Lazy-load expert platform and reasoning engine
+  const { expertIntelligencePlatform } = await import('./media/expertIntelligencePlatform');
+  const { reasoningExplanationEngine } = await import('./media/reasoningExplanationEngine');
   const expertPlan = expertIntelligencePlatform.activateExperts(language ?? 'speech transcription', 'transcribe');
 
   try {
@@ -564,6 +616,9 @@ export async function routeTranscribe(
 
 export async function routeSearch(query: string): Promise<{ context: string; results: any[]; latencyMs: number }> {
   const timer = startTimer();
+  // Lazy-load expert intelligence and reasoning explanation engines
+  const { expertIntelligencePlatform } = await import('./media/expertIntelligencePlatform');
+  const { reasoningExplanationEngine } = await import('./media/reasoningExplanationEngine');
   const expertPlan = expertIntelligencePlatform.activateExperts(query, 'search');
 
   try {

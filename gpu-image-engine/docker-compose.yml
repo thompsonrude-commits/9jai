@@ -1,0 +1,39 @@
+# gpu-image-engine/docker-compose.yml
+# Compose file that runs ComfyUI with GPU support.
+# Requires Docker Engine with NVIDIA Container Toolkit installed on the host (https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+version: '3.8'
+
+services:
+  comfyui:
+    build: .
+    image: 9jai/comfyui:latest
+    container_name: comfyui
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    environment:
+      - MODEL_DIRECTORY=/models
+      - OUTPUT_DIRECTORY=/outputs
+      - COMFYUI_API_KEY=${COMFYUI_API_KEY:-}
+    # Modern compose spec for GPUs (device_requests)
+    deploy: {}
+    device_requests:
+      - driver: nvidia
+        count: 1
+        capabilities: ["gpu"]
+    volumes:
+      - ./models:/models:ro
+      - ./workflows:/workflows:ro
+      - ./outputs:/outputs:rw
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7860/system_stats || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+# NOTE: If your Docker Compose implementation doesn't support device_requests,
+# use `runtime: nvidia` (legacy) or run the container with `--gpus` flags.
+# Example (legacy) under service:
+#    runtime: nvidia
+# or start with docker run --gpus all -p 7860:7860 9jai/comfyui:latest

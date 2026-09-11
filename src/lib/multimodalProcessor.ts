@@ -134,7 +134,7 @@ async function processDocument(file: File): Promise<Partial<ProcessedFile>> {
 
 async function processSpreadsheet(file: File): Promise<Partial<ProcessedFile>> {
   try {
-    // Try to parse CSV
+    // CSV handling (client-side)
     if (file.name.endsWith('.csv')) {
       const text = await file.text();
       const lines = text.split('\n').slice(0, 50); // first 50 rows
@@ -143,7 +143,55 @@ async function processSpreadsheet(file: File): Promise<Partial<ProcessedFile>> {
         analysisHint: `User uploaded a CSV spreadsheet: "${file.name}". The data is provided below.`,
       };
     }
-  } catch { /* ignore */ }
+
+    // XLSX/XLS handling: if running in browser, try server-side parse endpoint for richer structure
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      // Only attempt fetch when available (browser runtime). In Node/test env this will be skipped.
+      if (typeof fetch === 'function') {
+        try {
+          const arr = await file.arrayBuffer();
+          // Convert ArrayBuffer to base64 for JSON transport to the functions bridge
+          function arrayBufferToBase64(buffer: ArrayBuffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              const chunk = bytes.subarray(i, i + chunkSize);
+              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            }
+            return btoa(binary);
+          }
+          const fileBase64 = arrayBufferToBase64(arr);
+
+          const resp = await fetch('/api/v1/spreadsheet/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64, filename: file.name }),
+          } as any);
+
+          if (resp.ok) {
+            const j = await resp.json();
+            if (j && j.success && j.data) {
+              // Build a compact textual preview so downstream code that expects extractedText still works
+              const wb = j.data;
+              const sheetSummaries = (wb.sheets || []).map((s: any) => {
+                const hdr = s.headers ? s.headers.join(' | ') : '';
+                const rows = (s.previewRows || []).slice(0, 5).map((r: any) => r.map((c: any) => (c === null || c === undefined) ? '' : String(c)).join(' | ')).join('\n');
+                return `Sheet: ${s.name}\nHeaders: ${hdr}\nPreview:\n${rows}`;
+              }).join('\n\n---\n\n');
+
+              return {
+                extractedText: sheetSummaries.slice(0, 15000),
+                analysisHint: `User uploaded an Excel workbook: "${file.name}". Parsed ${wb.sheetCount} sheets.`,
+              };
+            }
+          }
+        } catch (err) {
+          console.warn('[Multimodal] server-side spreadsheet parse failed:', err);
+        }
+      }
+    }
+  } catch (err) { console.warn('[Multimodal] processSpreadsheet error:', err); }
 
   return {
     analysisHint: `User uploaded a spreadsheet: "${file.name}". Please describe what analysis you'd like.`,

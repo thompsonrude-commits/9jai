@@ -31,7 +31,7 @@ export const OPENROUTER_MODELS = [
   'mistralai/mistral-7b-instruct:free',
   'microsoft/phi-3-mini-128k-instruct:free',
   'qwen/qwen-2.5-72b-instruct:free',
-  'deepseek/deepseek-r1:free',
+  'openai/gpt-oss-20b:free',
 ];
 
 // ── Vision chat — sends image + text to multimodal model ─────────────────

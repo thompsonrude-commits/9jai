@@ -7,7 +7,7 @@
  */
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseUnavailableError } from './firebase';
 import { LINGUISTIC_REPOSITORY } from './repository';
 import { customAudioCache } from './voice';
 
@@ -97,7 +97,9 @@ export function useLexicon() {
       });
       rebuild(baseMap);
     }, (error) => {
-      console.error('Error fetching coreVocabAudio:', error);
+      if (!isFirebaseUnavailableError(error) && active) {
+        console.error('Error fetching coreVocabAudio:', error);
+      }
       if (active) rebuild(baseMap);
     });
 
@@ -129,7 +131,9 @@ export function useLexicon() {
       });
       rebuild(baseMap);
     }, (error) => {
-      console.error('Error fetching communityVocab:', error);
+      if (!isFirebaseUnavailableError(error) && active) {
+        console.error('Error fetching communityVocab:', error);
+      }
       if (active) rebuild(baseMap);
     });
 

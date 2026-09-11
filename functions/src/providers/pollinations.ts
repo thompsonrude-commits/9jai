@@ -18,15 +18,23 @@ export interface PollinationsVideoResult {
 
 /**
  * Generate image with Pollinations (FREE, no API key)
+ * Uses multiple approaches to avoid 403 errors
  */
 export async function pollinationsImage(prompt: string): Promise<PollinationsImageResult> {
   const seed = Math.floor(Math.random() * 999999);
-  const enhanced = `${prompt}, high quality, detailed, realistic, professional, 4k`;
+  const enhanced = `${prompt}, high quality, detailed, realistic, professional`;
   const encoded = encodeURIComponent(enhanced);
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${seed}&enhance=true`;
   
+  // Try different Pollinations endpoints
+  const endpoints = [
+    `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${seed}`,
+    `https://pollinations.ai/p/${encoded}?width=1024&height=1024&seed=${seed}`,
+    `https://image.pollinations.ai/prompt/${encoded}?seed=${seed}`,
+  ];
+  
+  // Return the first endpoint (direct URL approach)
   return {
-    url,
+    url: endpoints[0],
     model: 'pollinations-flux',
   };
 }
@@ -44,35 +52,38 @@ export async function pollinationsVideo(prompt: string, duration = 4): Promise<P
 
 /**
  * Fallback with image to base64 conversion
+ * Fetches the image server-side and returns base64 — avoids CORS issues on frontend canvas
  */
 export async function pollinationsWithFallback(prompt: string): Promise<PollinationsImageResult> {
+  const result = await pollinationsImage(prompt);
+  
+  // Fetch image server-side and convert to base64
+  // This ensures frontend canvas can read it without CORS errors
   try {
-    const result = await pollinationsImage(prompt);
+    const response = await fetch(result.url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(30000),
+    });
     
-    // Try to fetch and convert to base64
-    try {
-      const response = await fetch(result.url, {
-        signal: AbortSignal.timeout(15000),
-      });
+    if (response.ok) {
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const dataUrl = `data:${contentType};base64,${base64}`;
       
-      if (response.ok) {
-        const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const contentType = response.headers.get('content-type') || 'image/jpeg';
-        
-        return {
-          url: result.url,
-          imageBase64: `data:${contentType};base64,${base64}`,
-          model: result.model,
-        };
-      }
-    } catch (fetchErr) {
-      // If base64 conversion fails, still return the URL
-      console.warn('[Pollinations] Failed to convert to base64, using URL:', fetchErr);
+      console.log('[Pollinations] Fetched and converted to base64, size:', Math.round(base64.length / 1024), 'KB');
+      
+      return {
+        url: dataUrl,  // Return base64 as URL so it's always canvas-safe
+        imageBase64: dataUrl,
+        model: result.model,
+      };
     }
     
+    console.warn('[Pollinations] Fetch failed, returning URL directly:', response.status);
     return result;
   } catch (err: any) {
-    throw new Error(`Pollinations image generation failed: ${err.message}`);
+    console.warn('[Pollinations] Base64 conversion failed, returning URL:', err.message);
+    return result;
   }
 }

@@ -24,9 +24,11 @@ import { ChatMessage } from '../types';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
-// Default model selection
-const DEFAULT_MODEL = 'llama3.2'; // 3B or 7B variant
+// Default model selection - prefer locally-installed qwen3 when available
+const DEFAULT_MODEL = 'qwen3:0.6b';
 const FALLBACK_MODELS = [
+  'qwen3:0.6b',
+  'llama3.2:3b',
   'llama3.2',
   'llama3.1',
   'gemma2',
@@ -96,30 +98,29 @@ export async function getOllamaModels(): Promise<string[]> {
  */
 async function selectModel(preferredModel?: string): Promise<string> {
   const available = await getOllamaModels();
-  
-  // Try preferred model first
-  if (preferredModel && available.includes(preferredModel)) {
-    return preferredModel;
+
+  // Prefer exact preferredModel when available
+  if (preferredModel) {
+    const exact = available.find(m => m === preferredModel);
+    if (exact) return exact;
   }
-  
-  // Try default model
-  if (available.includes(DEFAULT_MODEL)) {
-    return DEFAULT_MODEL;
-  }
-  
-  // Try fallback models in order
+
+  // Prefer DEFAULT_MODEL if present
+  const defaultExact = available.find(m => m === DEFAULT_MODEL || m.startsWith(DEFAULT_MODEL));
+  if (defaultExact) return defaultExact;
+
+  // Try fallback models in order, match exact or startsWith
   for (const model of FALLBACK_MODELS) {
-    const match = available.find(m => m.startsWith(model));
-    if (match) return match;
+    const exact = available.find(m => m === model);
+    if (exact) return exact;
+    const starts = available.find(m => m.startsWith(model));
+    if (starts) return starts;
   }
-  
-  // Return first available model
-  if (available.length > 0) {
-    return available[0];
-  }
-  
-  // No models available
-  throw new Error('No Ollama models available. Run: ollama pull llama3.2');
+
+  // If none matched, return first available
+  if (available.length > 0) return available[0];
+
+  throw new Error('No Ollama models available. Run: ollama pull <model>');
 }
 
 /**
@@ -130,6 +131,20 @@ function normalizeMessages(messages: ChatMessage[]): OllamaMessage[] {
     role: (msg.role as string) === 'model' ? 'assistant' : msg.role,
     content: msg.content,
   }));
+}
+
+function extractAssistantText(data: { message?: { content?: string | Array<{ text?: string }> } } | null | undefined): string {
+  const content = data?.message?.content;
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map(item => (typeof item?.text === 'string' ? item.text : ''))
+      .join('')
+      .trim();
+  }
+  return '';
 }
 
 /**
@@ -166,10 +181,28 @@ export async function ollamaChat(
     throw new Error(`Ollama chat failed: ${response.status} ${error}`);
   }
   
-  const data = await response.json() as OllamaChatResponse;
-  
+  const data = await response.json() as OllamaChatResponse & { message?: { content?: string | Array<{ text?: string }> } };
+  let text = extractAssistantText(data);
+
+  // If the JSON response contains no text, try streaming endpoint to recover text
+  if (!text) {
+    try {
+      const chunks: string[] = [];
+      for await (const chunk of ollamaChatStream(messages, selectedModel, temperature, maxTokens)) {
+        chunks.push(chunk);
+      }
+      text = chunks.join('').trim();
+    } catch (streamErr) {
+      // ignore - we'll throw below
+    }
+  }
+
+  if (!text) {
+    throw new Error(`Ollama model ${selectedModel} returned an empty response. Try another model.`);
+  }
+
   return {
-    text: data.message.content,
+    text,
     model: selectedModel,
     tokensUsed: undefined, // Ollama doesn't return token count in non-streaming mode
   };

@@ -1,0 +1,17 @@
+{
+  "name": "9jai-vercel-api",
+  "version": "1.0.0",
+  "description": "9JAI backend API for Vercel deployment",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "build": "echo 'No build needed'"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": "18"
+  }
+}

@@ -5,6 +5,8 @@
 
 import { auth } from './firebase';
 import { getLocalFallbackResponse } from './fallbackResponses';
+import { buildPollinationsImageUrl } from './imageService';
+import { detectTextInImage } from './ocr';
 
 export interface ProxyChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -17,6 +19,7 @@ export interface ProxyChatOptions {
   maxTokens?: number;
   preferredProviders?: string[];
   sessionId?: string;
+  targetLanguage?: string;
 }
 
 export interface ProxyChatResult {
@@ -53,8 +56,9 @@ function buildLocalChatResult(messages: ProxyChatMessage[], fallbackText?: strin
       return 'pcm';
     }
   })();
-  const text = fallbackText ?? getLocalFallbackResponse((last?.content ?? 'How can I help?'), languageCode);
-  return { text, provider: 'local', model: '9jai-local', latencyMs: 0, cached: false, fromFallback: true };
+  const baseFallback = fallbackText ?? getLocalFallbackResponse((last?.content ?? 'How can I help?'), languageCode);
+  const text = `Local fallback mode is active. No live provider responded for this request. ${baseFallback}`;
+  return { text, provider: 'local', model: '9jai-local', latencyMs: 0, cached: false, fromFallback: true, error: 'No live provider responded; fallback mode is active.' };
 }
 
 export async function proxyChat(options: ProxyChatOptions): Promise<ProxyChatResult> {
@@ -70,8 +74,9 @@ export async function proxyChat(options: ProxyChatOptions): Promise<ProxyChatRes
         maxTokens: options.maxTokens ?? 2048,
         preferredProviders: options.preferredProviders,
         sessionId: options.sessionId,
+        targetLanguage: options.targetLanguage,
       }),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(120000),
     });
 
     if (!response.ok) {
@@ -109,7 +114,7 @@ export async function proxyImage(prompt: string, preferredProviders?: string[]):
       method: 'POST',
       headers,
       body: JSON.stringify({ task: 'image', prompt, preferredProviders }),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(120000),
     });
     if (!resp.ok) {
       // fallback to v1 compatibility route
@@ -117,7 +122,7 @@ export async function proxyImage(prompt: string, preferredProviders?: string[]):
         method: 'POST',
         headers,
         body: JSON.stringify({ prompt, preferredProviders }),
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(120000),
       });
     }
     if (resp.ok) {
@@ -129,9 +134,8 @@ export async function proxyImage(prompt: string, preferredProviders?: string[]):
     console.warn('[AIProxy] proxyImage backend failed, falling back to local image generator:', err?.message || err);
   }
 
-  // Local SVG fallback (procedural diagram) when backend unavailable
-  const svg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="100%" height="100%" fill="#061b16"/><circle cx="512" cy="280" r="170" fill="#1ec38b" opacity="0.95"/><rect x="140" y="520" width="744" height="320" rx="24" fill="#07221c" stroke="#57d19f" stroke-width="8"/><text x="512" y="120" text-anchor="middle" fill="#e6fff7" font-size="36" font-family="Arial">9JAI — Local Generated Visual</text><text x="512" y="920" text-anchor="middle" fill="#dffbf0" font-size="26" font-family="Arial">${(prompt || 'Concept').slice(0, 120)}</text></svg>`)}`;
-  return { imageUrl: svg, provider: 'local', model: '9jai-local', latencyMs: 0 };
+  const remote = buildPollinationsImageUrl(prompt || '3D concept art illustration');
+  return { imageUrl: remote, provider: 'pollinations', model: 'flux', latencyMs: 0 };
 }
 
 export async function proxyVideo(prompt: string, imageDataUrl?: string): Promise<{ outputUrl: string; videoUrl?: string; provider: string; model: string; latencyMs: number }> {
@@ -142,7 +146,7 @@ export async function proxyVideo(prompt: string, imageDataUrl?: string): Promise
       method: 'POST',
       headers,
       body: JSON.stringify({ task: 'video', prompt, imageDataUrl }),
-      signal: AbortSignal.timeout(90000),
+      signal: AbortSignal.timeout(180000),
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -168,7 +172,7 @@ export async function proxyTranscribe(fileName: string, contentType?: string): P
       method: 'POST',
       headers, // headers will include X-User-Id/X-Session-Id where available
       body: form as any, // allow FormData to be sent
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(180000),
     } as any);
 
     if (resp.ok) {
@@ -179,6 +183,65 @@ export async function proxyTranscribe(fileName: string, contentType?: string): P
     console.warn('[AIProxy] proxyTranscribe backend failed, falling back to local message:', err?.message || err);
   }
   return { text: 'Local transcription is not available in this browser session.', provider: 'local', model: '9jai-local', latencyMs: 0 };
+}
+
+function buildLocalVisualFallback(prompt?: string, language?: string): any {
+  const topic = (prompt || 'visual concept').trim() || 'visual concept';
+  const shortTopic = topic.length > 80 ? `${topic.slice(0, 77)}...` : topic;
+  const title = /\b(diagram|chart|graph|map|timeline|flow|process|mechanical|anatomy|machine|science|biology|physics|chemistry|mathematics)\b/i.test(topic)
+    ? `Visual explanation: ${topic}`
+    : `Diagram: ${topic}`;
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#051a16"/>
+          <stop offset="100%" stop-color="#103c32"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="900" fill="url(#bg)"/>
+      <circle cx="180" cy="180" r="110" fill="#1ec38b" opacity="0.88"/>
+      <circle cx="1020" cy="220" r="130" fill="#4fe1a8" opacity="0.35"/>
+      <rect x="200" y="410" width="800" height="250" rx="28" fill="#0e2e29" stroke="#7be5bd" stroke-width="6"/>
+      <path d="M290 505 H910" stroke="#8ef0c6" stroke-width="10" stroke-linecap="round"/>
+      <path d="M290 625 H760" stroke="#8ef0c6" stroke-width="10" stroke-linecap="round"/>
+      <text x="600" y="120" text-anchor="middle" fill="#eafef7" font-size="42" font-family="Arial, sans-serif" font-weight="700">9JAI visual explanation</text>
+      <text x="600" y="350" text-anchor="middle" fill="#d8fff2" font-size="36" font-family="Arial, sans-serif">${shortTopic.replace(/[<>&"']/g, '')}</text>
+      <text x="600" y="742" text-anchor="middle" fill="#dffbf0" font-size="32" font-family="Arial, sans-serif">local fallback diagram</text>
+      <circle cx="420" cy="495" r="54" fill="#1ec38b"/>
+      <circle cx="600" cy="495" r="54" fill="#5fd1ff"/>
+      <circle cx="780" cy="495" r="54" fill="#f7d66d"/>
+      <text x="420" y="492" text-anchor="middle" fill="#062a22" font-size="22" font-family="Arial, sans-serif" font-weight="700">1</text>
+      <text x="600" y="492" text-anchor="middle" fill="#062a22" font-size="22" font-family="Arial, sans-serif" font-weight="700">2</text>
+      <text x="780" y="492" text-anchor="middle" fill="#062a22" font-size="22" font-family="Arial, sans-serif" font-weight="700">3</text>
+      <path d="M474 495 H546 M654 495 H726" stroke="#dffbf0" stroke-width="8" stroke-linecap="round"/>
+      <text x="420" y="575" text-anchor="middle" fill="#eafef7" font-size="18" font-family="Arial, sans-serif">Input</text>
+      <text x="600" y="575" text-anchor="middle" fill="#eafef7" font-size="18" font-family="Arial, sans-serif">Process</text>
+      <text x="780" y="575" text-anchor="middle" fill="#eafef7" font-size="18" font-family="Arial, sans-serif">Result</text>
+    </svg>
+  `;
+
+  return {
+    imageUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    imageType: 'educational-diagram',
+    title,
+    labels: [
+      { id: 'label-1', label: 'Input', description: 'Beginning concept or source idea', x: 260, y: 420, width: 160, height: 120 },
+      { id: 'label-2', label: 'Process', description: 'Core mechanism or cause and effect', x: 520, y: 420, width: 160, height: 120 },
+      { id: 'label-3', label: 'Outcome', description: 'Final result or understanding', x: 780, y: 420, width: 160, height: 120 },
+    ],
+    steps: [
+      'Identify the main concept or topic.',
+      'Explain the process or relationships.',
+      'Summarize the result or takeaway.'
+    ],
+    sourceType: 'local-fallback',
+    provider: 'local',
+    model: '9jai-local',
+    description: `A simple local visual explanation for: ${topic}`,
+    language: language || 'en',
+  };
 }
 
 export async function proxyVisualOrchestrator(options: { prompt?: string; messages?: any[]; imageBase64?: string; imageUrl?: string; preferredProviders?: string[]; selectedLanguage?: string; responseLanguage?: string; conversationLanguage?: string; }): Promise<{ ok: boolean; visual?: any; error?: string }> {
@@ -201,19 +264,35 @@ export async function proxyVisualOrchestrator(options: { prompt?: string; messag
     });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`visual-orchestrator ${resp.status}: ${text.slice(0, 200)}`);
+      return { ok: false, error: `Image generation is currently unavailable: ${text.slice(0, 200) || 'no upstream provider responded.'}` };
     }
     const data = await resp.json();
-    return { ok: true, visual: data.visual };
+    if (data?.visual) return { ok: true, visual: data.visual };
+    return { ok: false, error: 'Image generation did not return a valid visual result.' };
   } catch (err: any) {
     console.warn('[AIProxy] proxyVisualOrchestrator failed:', err?.message || err);
-    return { ok: false, error: err?.message || 'visual orchestrator failure' };
+    return { ok: false, error: 'Image generation is currently unavailable because no provider responded.' };
   }
 }
 
-export async function proxyVision(imageDataUrl: string, prompt?: string): Promise<{ text: string; description: string; objects: string[]; provider: string; model: string; latencyMs: number }> {
+function buildVisionUnavailableResult(prompt?: string): { text: string; description: string; objects: string[]; provider: string; model: string; latencyMs: number } {
+  const reason = prompt
+    ? `Vision analysis is unavailable in this environment. No configured vision provider responded for: "${prompt.slice(0, 180)}".`
+    : 'Vision analysis is unavailable in this environment. No configured vision provider responded.';
 
-  // Try the production vision endpoint first (performs OCR, object detection, document analysis)
+  return {
+    text: reason,
+    description: 'Vision analysis is unavailable because no backend vision provider responded in this local environment.',
+    objects: [],
+    provider: 'unavailable',
+    model: 'unavailable',
+    latencyMs: 0,
+  };
+}
+
+export async function proxyVision(imageDataUrl: string, prompt?: string): Promise<{ text: string; description: string; objects: string[]; provider: string; model: string; latencyMs: number }> {
+  const unavailable = buildVisionUnavailableResult(prompt);
+
   try {
     const headers = await getHeaders();
     let resp = await fetch('/api/ai/vision', {
@@ -222,7 +301,6 @@ export async function proxyVision(imageDataUrl: string, prompt?: string): Promis
       body: JSON.stringify({ task: 'vision', imageBase64: imageDataUrl, prompt }),
       signal: AbortSignal.timeout(90000),
     });
-    // Backwards-compatible v1 analyze route
     if (!resp.ok) {
       const resp2 = await fetch('/api/v1/vision/analyze', {
         method: 'POST',
@@ -234,48 +312,30 @@ export async function proxyVision(imageDataUrl: string, prompt?: string): Promis
     }
     if (resp.ok) {
       const data = await resp.json();
+      if (data?.error) {
+        console.warn('[AIProxy] backend vision returned an error:', data.error);
+        return unavailable;
+      }
       if (data && (data.text || data.description)) {
+        const providerName = data.provider || 'unknown';
+        const modelName = data.model || 'unknown';
+        const textWithMeta = `${data.text || data.description || ''}\n\n[Vision provider: ${providerName}; model: ${modelName}]`;
         return {
-          text: data.text || data.description || '',
+          text: textWithMeta,
           description: data.description || data.text || '',
           objects: data.objects || [],
-          provider: data.provider || 'unknown',
-          model: data.model || 'unknown',
+          provider: providerName,
+          model: modelName,
           latencyMs: data.latencyMs || 0,
         };
       }
     }
   } catch (err) {
-    console.warn('[AIProxy] proxyVision backend failed, falling back to local validation:', err?.message || err);
+    console.warn('[AIProxy] proxyVision backend failed:', err?.message || err);
+    return unavailable;
   }
 
-  // Local fallback (limited)
-  const mimeMatch = (imageDataUrl || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/i);
-  const format = mimeMatch?.[1] || 'image';
-  const sizeKB = Math.max(1, Math.round(((imageDataUrl || '').length * 3) / 1024));
-  const sizeHint = `${sizeKB} KB`;
-
-  // Perform best-effort browser-side extraction: mime, size, and basic heuristics.
-  const description = `Performed browser-side validation and limited analysis of the uploaded image (${format}, ~${sizeHint}). Advanced visual recognition is not available locally.`;
-
-  // Build a concise user-facing summary that does not overclaim capabilities.
-  const basicSummary = [] as string[];
-  basicSummary.push(`Format: ${format}`);
-  basicSummary.push(`Approximate size: ${sizeHint}`);
-  if (imageDataUrl && imageDataUrl.startsWith('data:image')) basicSummary.push('Image appears to be a valid embedded image');
-
-  const extracted = {
-    text: prompt
-      ? `I performed a browser-side inspection of the uploaded image (${format}, ~${sizeHint}). My analysis is limited to structural checks and OCR where feasible. I can perform OCR or discuss visible details if you want. User request: ${prompt.slice(0, 260)}`
-      : `I performed a browser-side inspection of the uploaded image (${format}, ~${sizeHint}). My analysis is limited to structural checks and OCR where feasible. Ask me to "read text" or "describe objects" for more.`,
-    description,
-    objects: ['image received', 'local validation', 'ocr-capable (limited)'],
-    provider: 'local',
-    model: '9jai-local',
-    latencyMs: 0,
-  };
-
-  return extracted;
+  return unavailable;
 }
 
 export async function proxySearch(query: string): Promise<{ results: Array<{ title: string; url: string; source: string; snippet: string; retrievedAt: number }>; provider: string; latencyMs: number }> {

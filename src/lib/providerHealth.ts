@@ -168,8 +168,8 @@ async function checkChatCapability(): Promise<boolean> {
   const ollamaStatus = providerStatuses.get('ollama');
   if (ollamaStatus?.available) return true;
   
-  // Check if any fallback provider is available
-  const fallbacks = ['groq', 'openrouter', 'together', 'deepseek'];
+  // Check active fallback providers only.
+  const fallbacks = ['grok', 'groq', 'openrouter', 'together'];
   return fallbacks.some(id => providerStatuses.get(id)?.available);
 }
 

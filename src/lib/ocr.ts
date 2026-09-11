@@ -50,20 +50,29 @@ async function preprocessImageForOcr(imageUrl: string): Promise<string> {
 
 async function tryTesseractOcr(preprocessedImage: string): Promise<OcrResult | null> {
   try {
-    const tesseractModule = await (Function('return import("tesseract.js")')() as Promise<any>);
-    const Module = tesseractModule?.default || tesseractModule;
-    const result = await Module?.recognize?.(preprocessedImage, 'eng', { logger: () => {} });
-    const text = (result?.data?.text || '').trim();
+    const { createWorker } = await import('tesseract.js');
+    console.log('[OCR] Starting Tesseract.js worker...');
+    const worker = await createWorker('eng', 1, {
+      logger: (m) => console.log('[Tesseract]', m),
+    });
+    
+    console.log('[OCR] Recognizing text...');
+    const { data } = await worker.recognize(preprocessedImage);
+    await worker.terminate();
+    
+    const text = (data.text || '').trim();
+    console.log('[OCR] Extracted text:', text.substring(0, 100));
+    
     if (text) {
       return {
         text,
-        confidence: result?.data?.confidence,
+        confidence: data.confidence / 100,
         provider: 'tesseract',
         source: 'tesseract',
       };
     }
-  } catch {
-    // ignore if Tesseract is unavailable in this environment and continue to local fallback paths
+  } catch (err) {
+    console.error('[OCR] Tesseract.js failed:', err);
   }
   return null;
 }

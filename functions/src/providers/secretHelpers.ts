@@ -14,6 +14,7 @@ interface SecretLike {
 const BOOLEAN_FALSE_VALUES = new Set(['0', 'false', 'off', 'no', 'disabled']);
 
 const ENV_ALIASES: Record<string, string[]> = {
+  GROK_KEY: ['XAI_API_KEY', 'GROK_API_KEY', 'GROK_KEY'],
   GROQ_KEY: ['GROQ_API_KEY', 'GROQ_KEY'],
   HF_KEY: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'HUGGINGFACE_TOKEN', 'HF_TOKEN'],
   OPENAI_KEY: ['OPENAI_API_KEY', 'OPENAI_TOKEN'],

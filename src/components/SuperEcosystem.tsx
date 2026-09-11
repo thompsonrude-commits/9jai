@@ -20,6 +20,7 @@ import { loadUserMemory, saveUserMemory, buildMemoryContext, extractFactsFromMes
 import { saveFeedback, buildFeedbackContext, getRatingEmoji } from '../lib/feedbackSystem';
 import { recordAudioBlob } from '../lib/voice';
 import { speak } from '../lib/voice';
+import ModelViewer3D from './ModelViewer3D';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -373,6 +374,8 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
   const [feedbackContext, setFeedbackContext] = useState('');
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [processingFile, setProcessingFile] = useState(false);
+  const [show3DViewer, setShow3DViewer] = useState(false);
+  const [model3DUrl, setModel3DUrl] = useState('https://modelviewer.dev/shared-assets/models/LeePerrySmith.glb');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -412,6 +415,22 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, streamingText, scrollToBottom]);
+
+  // Listen for requests to open the 3D viewer (dispatched by ImageGenerator or other UI)
+  useEffect(() => {
+    const handler = (e: any) => {
+      const prompt = e?.detail?.prompt || '';
+      // If prompt mentions human/body/organ -> set a human anatomy default model if available
+      if (/human|body|organ|anatomy|heart|lungs|liver|stomach/i.test(prompt)) {
+        // Note: a full anatomically-labeled GLB must be supplied to get organ-specific anchors.
+        // Keep a sensible default; user can paste a GLB URL in the viewer to load a detailed anatomy model.
+        setModel3DUrl('https://modelviewer.dev/shared-assets/models/LeePerrySmith.glb');
+      }
+      setShow3DViewer(true);
+    };
+    window.addEventListener('open-3d-viewer', handler as EventListener);
+    return () => window.removeEventListener('open-3d-viewer', handler as EventListener);
+  }, []);
 
   // ── Auto-resize textarea ─────────────────────────────────────────────────
   useEffect(() => {
@@ -1025,6 +1044,15 @@ export default function SuperEcosystem({ user, isAdmin, onOpenLibrary }: SuperEc
           9jai Super · Multi-AI · Realtime · Multimodal · African Languages
         </p>
       </div>
+
+      {show3DViewer && (
+        <ModelViewer3D
+          modelUrl={model3DUrl}
+          title="Human Anatomy (interactive)"
+          onClose={() => setShow3DViewer(false)}
+        />
+      )}
+
     </div>
   );
 }

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Mail, Lock, Loader, AlertCircle, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import RotatingLogo, { RotatingLogoMedium } from './RotatingLogo';
 
 interface AdminLoginProps {
@@ -9,8 +11,8 @@ interface AdminLoginProps {
 }
 
 const ADMIN_CREDENTIALS = {
-  email: 'admin@9jai.app',
-  password: 'admin'
+  email: 'obosathompsons@gmail.com',
+  password: 'admin8594'
 };
 
 export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
@@ -27,23 +29,51 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     setIsLoading(true);
 
     try {
-      // Check admin credentials
+      // Check master admin credentials first
       if (email.trim().toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase() && password === ADMIN_CREDENTIALS.password) {
-        // Store admin session in localStorage
         const adminUser = {
           username: 'admin',
           email: ADMIN_CREDENTIALS.email,
           isAdmin: true,
+          isMasterAdmin: true,
           loginTime: Date.now()
         };
         localStorage.setItem('lexicon_dev_user', JSON.stringify(adminUser));
-        
-        // Hard redirect — forces App.tsx to re-read localStorage and set developerUser
-        window.location.href = '/admin/repository';
-      } else {
-        setError('Invalid email or password. Please check your credentials.');
-        setIsLoading(false);
+        window.location.href = '/admin/training';
+        return;
       }
+
+      // Check agents database
+      const q = query(
+        collection(db, 'agents'),
+        where('email', '==', email.trim().toLowerCase())
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const agentDoc = snapshot.docs[0];
+        const agentData = agentDoc.data();
+
+        // Verify password
+        if (agentData.password === password) {
+          const agentUser = {
+            username: agentData.name,
+            email: agentData.email,
+            isAdmin: true,
+            isAgent: true,
+            agentRole: agentData.role,
+            permissions: agentData.permissions || ['train'],
+            loginTime: Date.now()
+          };
+          localStorage.setItem('lexicon_dev_user', JSON.stringify(agentUser));
+          window.location.href = '/admin/training';
+          return;
+        }
+      }
+
+      // No match found
+      setError('Invalid email or password. Please check your credentials.');
+      setIsLoading(false);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
       setIsLoading(false);
@@ -71,10 +101,10 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           {/* Form */}
           <div className="px-6 py-10">
             <h2 className="text-3xl font-bold text-gray-900 mb-3">
-              Admin Login
+              Admin & Agent Login
             </h2>
             <p className="text-gray-600 text-base mb-8">
-              Enter your admin credentials to access the admin panel
+              Enter your credentials to access the training panel
             </p>
 
             {/* Error Message */}
@@ -93,7 +123,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             <form onSubmit={handleAdminLogin} className="space-y-5">
               <div>
                 <label className="block text-base font-semibold text-gray-900 mb-3">
-                  Admin Email
+                  Email
                 </label>
                 <div className="relative">
                   <Mail size={20} className="absolute left-4 top-4 text-gray-400" />
@@ -101,18 +131,18 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter admin email"
+                    placeholder="Enter your email"
                     required
                     disabled={isLoading}
                     autoComplete="off"
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#008751] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg text-base text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#008751] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-base font-semibold text-gray-900 mb-3">
-                  Admin Password
+                  Password
                 </label>
                 <div className="relative">
                   <Lock size={20} className="absolute left-4 top-4 text-gray-400" />
@@ -123,7 +153,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                     placeholder="••••••••"
                     required
                     disabled={isLoading}
-                    className="w-full pl-12 pr-12 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#008751] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full pl-12 pr-12 py-3 border-2 border-gray-300 rounded-lg text-base text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#008751] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <button
                     type="button"
@@ -146,7 +176,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                     <span>Signing In...</span>
                   </>
                 ) : (
-                  'Access Admin Panel'
+                  'Access Training Panel'
                 )}
               </button>
             </form>

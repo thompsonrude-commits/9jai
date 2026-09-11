@@ -8,6 +8,7 @@ import SearchLanguage from './components/SearchLanguage';
 import LanguageExplorer from './components/LanguageExplorer';
 import AdminRepository from './components/AdminRepository';
 import AdminTraining from './components/AdminTraining';
+import AgentManagement from './components/AgentManagement';
 import TeamManagement from './components/TeamManagement';
 import LanguagesMenu from './components/LanguagesMenu';
 import AfricanLanguages from './components/AfricanLanguages';
@@ -19,10 +20,11 @@ import SuperEcosystem from './components/SuperEcosystem';
 import AdminLogin from './components/AdminLogin';
 import UserLibrary from './components/UserLibrary';
 import MinimalSidebar from './components/MinimalSidebar';
+import { PlatformStatus } from './components/PlatformStatus';
 import { NIGERIAN_LANGUAGES } from './lib/nigerianLanguages';
 import { trackUserLogin } from './lib/analyticsService';
 
-const ADMIN_EMAIL = 'admin@9jai.app';
+const ADMIN_EMAIL = 'obosathompsons@gmail.com';
 
 // Build a flat map of languageId -> languageName from nigerianLanguages
 const LANGUAGE_ID_TO_NAME: Record<string, string> = {};
@@ -79,7 +81,9 @@ export default function App() {
       try { setDeveloperUser(JSON.parse(savedDev)); } catch (_) {}
     }
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u && !u.isAnonymous) {
+      // Only clear developer user if a REAL Firebase user logs in
+      // Don't clear for anonymous users
+      if (u && !u.isAnonymous && u.email) {
         setDeveloperUser(null);
         localStorage.removeItem('lexicon_dev_user');
       }
@@ -146,6 +150,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+        <PlatformStatus />
         <Footer />
         <AnimatePresence>
           {showLibrary && <UserLibrary user={user} onClose={() => setShowLibrary(false)} />}
@@ -180,12 +185,14 @@ export default function App() {
               <Route path="/discover" element={<div className="flex-1 overflow-y-auto"><SearchLanguage onLanguageFound={(langName) => { let id = langName.toLowerCase().replace(/\s+/g, '-'); for (const [k, v] of Object.entries(LANGUAGE_ID_TO_NAME)) { if (v.toLowerCase() === langName.toLowerCase()) { id = k; break; } } navigate(`/language/${id}`); }} /></div>} />
               <Route path="/admin/repository" element={<div className="flex-1 overflow-y-auto"><AdminRepository onSelectLanguage={(langName) => { let id = langName.toLowerCase().replace(/\s+/g, '-'); for (const [k, v] of Object.entries(LANGUAGE_ID_TO_NAME)) { if (v.toLowerCase() === langName.toLowerCase()) { id = k; break; } } navigate(`/language/${id}`); }} /></div>} />
               <Route path="/admin/training" element={<div className="flex-1 overflow-y-auto"><AdminTraining /></div>} />
+              <Route path="/admin/agents" element={<div className="flex-1 overflow-y-auto"><AgentManagement /></div>} />
               <Route path="/admin/team" element={<div className="flex-1 overflow-y-auto"><TeamManagement /></div>} />
             </>
           )}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </main>
+        <PlatformStatus />
         <Footer />
 
         <AnimatePresence>

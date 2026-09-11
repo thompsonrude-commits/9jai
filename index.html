@@ -126,16 +126,37 @@
   </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Register Service Worker for PWA
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          registrations.forEach(function(r) { r.unregister(); });
-        });
-        caches.keys().then(function(names) {
-          names.forEach(function(n) { caches.delete(n); });
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('✅ Service Worker registered:', registration.scope);
+            })
+            .catch(error => {
+              console.log('❌ Service Worker registration failed:', error);
+            });
         });
       }
+
+      // PWA Install Prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Dispatch custom event that React can listen to
+        window.dispatchEvent(new CustomEvent('pwa-install-available', { detail: e }));
+      });
+
+      // Track installation
+      window.addEventListener('appinstalled', () => {
+        console.log('✅ PWA installed successfully');
+        deferredPrompt = null;
+      });
     </script>
   </body>
 </html>

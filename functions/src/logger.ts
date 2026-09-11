@@ -4,6 +4,7 @@
  */
 
 import * as admin from 'firebase-admin';
+import { isSecretConfigured } from './providers/secretHelpers';
 import { RequestLog, ProviderHealth, ProviderId } from './types';
 
 // ── In-memory health state (per function instance) ─────────────────────────
@@ -128,11 +129,39 @@ export function getAllHealthSnapshots(): ProviderHealth[] {
   return Array.from(healthState.values());
 }
 
+import { PROVIDER_DEFINITIONS } from './media/authoritativeRegistry';
+
 export function isProviderAvailable(id: ProviderId): boolean {
+  // Lookup provider definition
+  const def = PROVIDER_DEFINITIONS.find(d => d.providerId === id);
+  if (!def) return false;
+
+  // If provider is explicitly disabled via environment, mark unavailable
+  try {
+    const disabled = (process.env[`DISABLE_${String(id).toUpperCase()}`] || process.env[`PROVIDER_${String(id).toUpperCase()}_DISABLED`] || process.env[`PROVIDER_${String(id).toUpperCase()}_ENABLED`]) as string | undefined;
+    if (typeof disabled === 'string' && (disabled.trim().toLowerCase() === 'true')) return false;
+  } catch {
+    // ignore
+  }
+
+  // If definition requires a secret, verify it
+  if (def.secretName && !isSecretConfigured(def.secretName)) return false;
+
   const h = getProviderHealth(id);
-  // Mark as unavailable if down or if last check was recent and it's degraded
   if (h.status === 'down') return false;
   if (h.consecutiveFailures >= 3) return false;
+
+  const lastError = (h as any).lastError as string | undefined;
+  if (lastError) {
+    const lower = lastError.toLowerCase();
+    if (lower.includes('401') || lower.includes('invalid api key') || lower.includes('invalid_api_key') || lower.includes('unauthorized') || lower.includes('forbidden')) {
+      return false;
+    }
+    if (lower.includes('enotfound') || lower.includes('getaddrinfo') || lower.includes('no such host')) {
+      return false;
+    }
+  }
+
   return true;
 }
 

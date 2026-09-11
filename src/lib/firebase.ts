@@ -78,17 +78,31 @@ export const signOut = async () => {
   return firebaseSignOut(auth);
 };
 
+export function isFirebaseUnavailableError(error: unknown): boolean {
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: string }).code)
+    : '';
+  const message = error instanceof Error ? error.message : String(error ?? '');
+
+  return (
+    code === 'permission-denied' ||
+    code === 'unauthenticated' ||
+    code === 'resource-exhausted' ||
+    code === 'unavailable' ||
+    code === 'failed-precondition' ||
+    /permission|insufficient permissions|unauthenticated|offline|unavailable|network|failed-precondition/i.test(message)
+  );
+}
+
 // Validate connection
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('unavailable')) {
-      // Quietly ignore transient initialization connection issues
+    if (isFirebaseUnavailableError(error)) {
+      // Firebase may be intentionally unavailable in local/offline or locked-down environments.
+      // The app should continue to run using local fallbacks without noisy console errors.
       return;
-    }
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
     }
   }
 }

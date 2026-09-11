@@ -3,7 +3,7 @@
  * Tracks user activity and usage statistics
  */
 
-import { db } from './firebase';
+import { db, isFirebaseUnavailableError } from './firebase';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
 
 export interface UserAnalytics {
@@ -72,7 +72,9 @@ export async function trackUserLogin(userId: string | undefined, email: string |
       });
     }
   } catch (error) {
-    console.error('Error tracking user login:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error tracking user login:', error);
+    }
   }
 }
 
@@ -105,7 +107,9 @@ export async function trackSessionStart(
 
     return docRef.id;
   } catch (error) {
-    console.error('Error tracking session start:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error tracking session start:', error);
+    }
     return '';
   }
 }
@@ -154,7 +158,9 @@ export async function trackMessage(
       });
     }
   } catch (error) {
-    console.error('Error tracking message:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error tracking message:', error);
+    }
   }
 }
 
@@ -179,7 +185,9 @@ export async function trackSessionEnd(sessionId: string): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('Error tracking session end:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error tracking session end:', error);
+    }
   }
 }
 
@@ -195,7 +203,9 @@ export async function getUserAnalytics(userId: string): Promise<UserAnalytics | 
     if (snapshot.empty) return null;
     return snapshot.docs[0].data() as UserAnalytics;
   } catch (error) {
-    console.error('Error getting user analytics:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error getting user analytics:', error);
+    }
     return null;
   }
 }
@@ -209,7 +219,9 @@ export async function getAllUsersAnalytics(): Promise<UserAnalytics[]> {
     const snapshot = await getDocs(analyticsRef);
     return snapshot.docs.map(doc => doc.data() as UserAnalytics);
   } catch (error) {
-    console.error('Error getting all users analytics:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error getting all users analytics:', error);
+    }
     return [];
   }
 }
@@ -224,7 +236,9 @@ export async function getUserSessionsAnalytics(userId: string): Promise<SessionA
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as SessionAnalytics);
   } catch (error) {
-    console.error('Error getting user sessions analytics:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error getting user sessions analytics:', error);
+    }
     return [];
   }
 }
@@ -238,7 +252,9 @@ export async function getAllSessionsAnalytics(): Promise<SessionAnalytics[]> {
     const snapshot = await getDocs(sessionRef);
     return snapshot.docs.map(doc => doc.data() as SessionAnalytics);
   } catch (error) {
-    console.error('Error getting all sessions analytics:', error);
+    if (!isFirebaseUnavailableError(error)) {
+      console.error('Error getting all sessions analytics:', error);
+    }
     return [];
   }
 }

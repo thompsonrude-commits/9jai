@@ -115,5 +115,15 @@ service cloud.firestore {
       allow create: if isSignedIn(); // users can log their own events
       allow read: if isMasterAdmin(); // only admin can read analytics
     }
+
+    // ── Generated Images (user-owned records written by server admin SDK) ──
+    match /image_generations/{genId} {
+      // Allow owner to read their generation record
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Allow master admin to read all
+      allow read: if isMasterAdmin();
+      // Writes are server-only via admin SDK; deny from client
+      allow write: if false;
+    }
   }
 }

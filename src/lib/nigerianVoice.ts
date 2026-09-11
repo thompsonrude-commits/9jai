@@ -343,14 +343,14 @@ export interface VoiceIdentity {
 }
 
 export const VOICE_IDENTITIES: Record<string, VoiceIdentity> = {
-  nosa:    { id:'nosa',    gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'calm',       pacing:0.90, pitch:0.90 },
-  jide:    { id:'jide',    gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'energetic',  pacing:1.05, pitch:1.00 },
-  uchena:  { id:'uchena',  gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'analytical', pacing:0.95, pitch:0.85 },
-  farouk:  { id:'farouk',  gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'wise',       pacing:0.85, pitch:0.80 },
-  adesuwa: { id:'adesuwa', gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'warm',       pacing:0.95, pitch:1.10 },
-  abike:   { id:'abike',   gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'lively',     pacing:1.02, pitch:1.15 },
-  ijeoma:  { id:'ijeoma',  gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'futuristic', pacing:1.00, pitch:1.08 },
-  hadizat: { id:'hadizat', gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'graceful',   pacing:0.92, pitch:1.05 },
+  nosa:    { id:'nosa',    gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'calm',       pacing:1.05, pitch:0.90 },
+  jide:    { id:'jide',    gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'energetic',  pacing:1.15, pitch:1.00 },
+  uchena:  { id:'uchena',  gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'analytical', pacing:1.08, pitch:0.92 },
+  farouk:  { id:'farouk',  gender:'male',   edgeVoice:'en-NG-AbeoNeural',   googleVoice:'en-NG-Standard-B', personality:'wise',       pacing:1.00, pitch:0.88 },
+  adesuwa: { id:'adesuwa', gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'warm',       pacing:1.10, pitch:1.10 },
+  abike:   { id:'abike',   gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'lively',     pacing:1.18, pitch:1.15 },
+  ijeoma:  { id:'ijeoma',  gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'futuristic', pacing:1.12, pitch:1.08 },
+  hadizat: { id:'hadizat', gender:'female', edgeVoice:'en-NG-EzinneNeural', googleVoice:'en-NG-Standard-A', personality:'graceful',   pacing:1.05, pitch:1.05 },
 };
 
 export const ASSISTANT_PROFILES: Record<string, { gender: 'male' | 'female' }> = {
@@ -363,38 +363,36 @@ export const ASSISTANT_PROFILES: Record<string, { gender: 'male' | 'female' }> =
 let speechBuffer       = '';
 let speechQueue: { text: string; assistantId: string }[] = [];
 let isSpeakingSentence = false;
-let activeAudio: HTMLAudioElement | null = null;
 let activeBrowserUtterance: SpeechSynthesisUtterance | null = null;
 let globalOnStreamStart: (() => void) | undefined;
 let globalOnStreamEnd:   (() => void) | undefined;
+// Cached best voice per gender — avoid scanning voices list every sentence
+let cachedMaleVoice:   SpeechSynthesisVoice | null | undefined = undefined;
+let cachedFemaleVoice: SpeechSynthesisVoice | null | undefined = undefined;
 
 // ── Chunk extraction — speaks early, never waits for full paragraph ────────
 
-const MIN_WORDS = 7; // speak after this many words even without punctuation
+const MIN_WORDS = 8;
 
 function extractNextChunk(flush: boolean): string | null {
-  // 1. Sentence-ending punctuation
   const m = speechBuffer.match(/[.!?\n]+/);
   if (m && m.index !== undefined) {
     const chunk = speechBuffer.slice(0, m.index + m[0].length).trim();
     speechBuffer = speechBuffer.slice(m.index + m[0].length);
     return chunk || null;
   }
-  // 2. Comma clause with enough words before it
   const cm = speechBuffer.match(/,\s+/);
   if (cm && cm.index !== undefined && speechBuffer.slice(0, cm.index).split(' ').length >= MIN_WORDS) {
     const chunk = speechBuffer.slice(0, cm.index + cm[0].length).trim();
     speechBuffer = speechBuffer.slice(cm.index + cm[0].length);
     return chunk || null;
   }
-  // 3. Word-count threshold — no punctuation needed
   const words = speechBuffer.split(' ');
   if (words.length >= MIN_WORDS + 2) {
     const chunk = words.slice(0, MIN_WORDS).join(' ').trim();
     speechBuffer = words.slice(MIN_WORDS).join(' ');
     return chunk || null;
   }
-  // 4. Flush remainder
   if (flush && speechBuffer.trim()) {
     const chunk = speechBuffer.trim();
     speechBuffer = '';
@@ -403,220 +401,126 @@ function extractNextChunk(flush: boolean): string | null {
   return null;
 }
 
-// ── TTS endpoints ──────────────────────────────────────────────────────────
+// ── Best voice picker ──────────────────────────────────────────────────────
+// Uses Windows SAPI/OS voices directly — same source as Voice Box
+// Priority: en-NG Neural > en-GB Neural > Google Natural > en-US Neural > any English
 
-// Use local proxy path so dev requests go through Vite and the emulator without CORS issues
-const TTS_ENDPOINT = '/api/v1/speech/synthesize';
+function pickBestVoice(gender: 'male' | 'female'): SpeechSynthesisVoice | null {
+  // Return cached if available
+  if (gender === 'male'   && cachedMaleVoice   !== undefined) return cachedMaleVoice;
+  if (gender === 'female' && cachedFemaleVoice !== undefined) return cachedFemaleVoice;
 
-const EDGE_PROXIES = [
-  'https://edge-tts-proxy.vercel.app/api/tts',
-  'https://tts.travisvn.com/api/edge-tts',
-  'https://edge-tts.deno.dev/api/tts',
-];
-
-// ── Browser TTS voice picker (strict gender lock) ─────────────────────────
-
-function getBestVoice(gender: 'male' | 'female'): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
-  const MALE_RE   = /male|man|boy|daniel|david|mark|paul|james|abeo|george|richard|oliver/i;
-  const FEMALE_RE = /female|woman|girl|zira|ezinne|samantha|victoria|karen|moira|fiona|tessa|aria/i;
-  let pool = voices.filter(v => {
+
+  // Female voice name patterns
+  const FEMALE_NAMES = /ezinne|zira|aria|jenny|sonia|emma|ava|natasha|libby|mia|susan|hazel|heather|linda|karen|moira|samantha|victoria|fiona|tessa|veena/i;
+  // Male voice name patterns  
+  const MALE_NAMES   = /abeo|ryan|guy|daniel|james|david|george|mark|oliver|thomas|edgar|richard|liam|ethan/i;
+
+  const isFemale = (v: SpeechSynthesisVoice) => FEMALE_NAMES.test(v.name) || /female/i.test(v.name);
+  const isMale   = (v: SpeechSynthesisVoice) => !isFemale(v);
+  const filter   = gender === 'female' ? isFemale : isMale;
+
+  // Score: higher is better
+  const score = (v: SpeechSynthesisVoice): number => {
+    let s = 0;
     const n = v.name.toLowerCase();
-    return gender === 'male'
-      ? (MALE_RE.test(n) || n.includes('male'))     && !FEMALE_RE.test(n) && !n.includes('female')
-      : (FEMALE_RE.test(n) || n.includes('female')) && !MALE_RE.test(n)   && !n.includes('male');
-  });
-  if (!pool.length) {
-    pool = voices.filter(v => {
-      const n = v.name.toLowerCase();
-      return gender === 'male' ? !FEMALE_RE.test(n) && !n.includes('female')
-                               : !MALE_RE.test(n)   && !n.includes('male');
-    });
-  }
-  for (const lang of ['en-NG','en-GB','en-US','en']) {
-    const hit = pool.find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase()));
-    if (hit) return hit;
-  }
-  return pool[0] ?? null;
+    const l = v.lang.toLowerCase();
+    // Nigerian voices — absolute best
+    if (/abeo/i.test(n))   s += 1000; // Microsoft Abeo (NG male)
+    if (/ezinne/i.test(n)) s += 1000; // Microsoft Ezinne (NG female)
+    if (l.startsWith('en-ng')) s += 500;
+    // British — closer rhythm to Nigerian than American
+    if (l.startsWith('en-gb')) s += 200;
+    if (/ryan|sonia|libby|mia/i.test(n)) s += 100; // Popular natural British voices
+    // Neural/Natural quality boost
+    if (/neural|natural|enhanced|premium/i.test(n)) s += 150;
+    if (/google/i.test(n)) s += 120; // Google voices on Chrome/Android are natural
+    if (/microsoft/i.test(n)) s += 80;
+    // American English fallback
+    if (l.startsWith('en-us')) s += 50;
+    if (l.startsWith('en'))    s += 20;
+    return s;
+  };
+
+  const pool = voices.filter(v => filter(v) && v.lang.toLowerCase().startsWith('en'));
+  const best = pool.length > 0
+    ? pool.sort((a, b) => score(b) - score(a))[0]
+    : (voices.find(v => v.lang.startsWith('en')) || voices[0] || null);
+
+  if (gender === 'male')   cachedMaleVoice   = best;
+  if (gender === 'female') cachedFemaleVoice = best;
+
+  console.log(`[TTS] Best ${gender} voice selected:`, best?.name, best?.lang);
+  return best;
 }
 
-// ── Stop any currently playing audio ──────────────────────────────────────
+// ── Stop speaking ──────────────────────────────────────────────────────────
 
-function stopActiveAudio(): void {
-  if (activeAudio) {
-    activeAudio.pause();
-    activeAudio.src = '';
-    activeAudio = null;
-  }
-  if (activeBrowserUtterance) {
-    window.speechSynthesis.cancel();
-    activeBrowserUtterance = null;
-  }
+function stopActiveSpeech(): void {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  activeBrowserUtterance = null;
 }
 
-// ── Browser TTS — starts immediately, returns utterance for cancellation ──
+// ── Speak one sentence directly via Web Speech API ────────────────────────
 
-function startBrowserTTS(
-  text: string,
-  assistantId: string,
-  onEnd: () => void
-): SpeechSynthesisUtterance | null {
-  if (!('speechSynthesis' in window)) { onEnd(); return null; }
-  window.speechSynthesis.cancel();
-
-  const id    = assistantId.toLowerCase();
-  const s     = VOICE_IDENTITIES[id] || VOICE_IDENTITIES.nosa;
-  const clean = text.replace(/[*_#`~\[\]]/g, '').slice(0, 500);
-  const u     = new SpeechSynthesisUtterance(clean);
-  const emo   = detectEmotion(text);
-
-  u.pitch  = (s.pitch  || 1.0) + (emo === 'happy' ? 0.05 : emo === 'serious' ? -0.03 : 0);
-  u.rate   = (s.pacing || 1.0) + (emo === 'happy' ? 0.05 : emo === 'serious' ? -0.10 : 0);
-  u.volume = 1;
-  u.onend   = () => { if (activeBrowserUtterance === u) { activeBrowserUtterance = null; onEnd(); } };
-  u.onerror = () => { if (activeBrowserUtterance === u) { activeBrowserUtterance = null; onEnd(); } };
-
-  const v = getBestVoice(s.gender || 'male');
-  if (!v) { onEnd(); return null; } // gender lock — never play wrong gender
-  u.voice = v;
-
-  activeBrowserUtterance = u;
-  window.speechSynthesis.speak(u);
-  return u;
-}
-
-// ── Edge TTS fetch — returns audio blob or null ────────────────────────────
-
-async function fetchEdgeTTS(text: string, assistantId: string): Promise<Blob | null> {
-  const id       = assistantId.toLowerCase();
-  const identity = VOICE_IDENTITIES[id] || VOICE_IDENTITIES.nosa;
-  const clean    = text.replace(/[*_#`~\[\]()]/g, '').replace(/```[\s\S]*?```/g, 'code block').slice(0, 300);
-  const rate     = identity.pacing > 1
-    ? `+${Math.round((identity.pacing - 1) * 100)}%`
-    : `-${Math.round((1 - identity.pacing) * 100)}%`;
-  const pitch    = identity.gender === 'female' ? '+5Hz' : '-2Hz';
-  const body     = JSON.stringify({ text: clean, voice: identity.edgeVoice, rate, pitch });
-
-  try {
-    // Race all proxies simultaneously — first valid blob wins
-    return await Promise.any(
-      EDGE_PROXIES.map(proxy =>
-        fetch(proxy, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-          signal: AbortSignal.timeout(1500), // 1.5s hard limit
-        }).then(async r => {
-          if (!r.ok) throw new Error(`${r.status}`);
-          const b = await r.blob();
-          if (b.size < 200) throw new Error('empty');
-          return b;
-        })
-      )
-    );
-  } catch {
-    return null;
-  }
-}
-
-// ── Google TTS fetch — returns base64 string or null ──────────────────────
-
-async function fetchGoogleTTS(text: string, assistantId: string): Promise<string | null> {
-  try {
-    const res = await fetch(TTS_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, assistantId: assistantId.toLowerCase() }),
-      signal: AbortSignal.timeout(1500), // 1.5s hard limit
-    });
-    if (!res.ok) return null;
-    const data = await res.json() as { audioBase64?: string; fallback?: boolean };
-    if (data.fallback || !data.audioBase64) return null;
-    return data.audioBase64;
-  } catch {
-    return null;
-  }
-}
-
-// ── Core: true parallel TTS race — zero silence guaranteed ───────────────
-//
-// Timeline:
-//   t=0ms    → Browser TTS starts speaking immediately
-//   t=0ms    → Edge TTS + Google TTS fetches fire simultaneously
-//   t<1500ms → If Edge OR Google responds first → cancel browser, play premium
-//   t=1500ms → Deadline: if no premium yet → browser continues, premium ignored
-//   t=done   → onDone fires exactly once when the active engine finishes
-
-async function playSentenceParallel(
+function speakSentenceDirectly(
   text: string,
   assistantId: string,
   onDone: () => void
-): Promise<void> {
-  const adapted = normalizeSpeechText(text);
-  const id      = assistantId.toLowerCase();
+): void {
+  if (!('speechSynthesis' in window)) { onDone(); return; }
 
-  let doneCalled    = false;
-  let premiumActive = false; // true once a premium audio element is playing
-  let deadlinePast  = false; // true once 1.5s window closes
+  window.speechSynthesis.cancel();
 
-  const finish = () => {
-    if (doneCalled) return;
-    doneCalled = true;
-    onDone();
-  };
+  const id   = assistantId.toLowerCase();
+  const s    = VOICE_IDENTITIES[id] || VOICE_IDENTITIES.nosa;
+  const emo  = detectEmotion(text);
+  const clean = text.slice(0, 600);
 
-  // ── 1. Browser TTS fires immediately ──────────────────────────────────
-  startBrowserTTS(adapted, id, () => {
-    // Only call finish if premium hasn't taken over
-    if (!premiumActive) finish();
-  });
+  const u   = new SpeechSynthesisUtterance(clean);
+  u.pitch   = (s.pitch  || 1.0) + (emo === 'happy' ? 0.10 : emo === 'serious' ? -0.06 : 0);
+  u.rate    = Math.min(1.25, (s.pacing || 1.1) + (emo === 'happy' ? 0.08 : emo === 'serious' ? -0.06 : 0));
+  u.volume  = 1.0;
+  u.lang    = 'en-GB'; // British English — much closer to Nigerian cadence than en-US
 
-  // ── 2. 1.5s deadline — after this, browser wins regardless ────────────
-  const deadline = new Promise<void>(resolve => setTimeout(() => {
-    deadlinePast = true;
-    resolve();
-  }, 1500));
-
-  // ── 3. Premium fetch helper — plays audio and calls finish on end ──────
-  const playPremiumAudio = (audio: HTMLAudioElement, cleanup?: () => void) => {
-    if (deadlinePast || premiumActive) {
-      // Too late or already have premium — discard
-      cleanup?.();
-      return;
+  // Set voice — clear cache first time so we get best available
+  const setVoice = () => {
+    // Clear cache so we re-scan after voices load
+    cachedMaleVoice   = undefined;
+    cachedFemaleVoice = undefined;
+    const v = pickBestVoice(s.gender || 'male');
+    if (v) {
+      u.voice = v;
+      u.lang  = v.lang; // Match utterance lang to voice lang
     }
-    premiumActive = true;
-    stopActiveAudio(); // cancel browser TTS
-    activeAudio = audio;
-    audio.onended = () => { activeAudio = null; cleanup?.(); finish(); };
-    audio.onerror = () => { activeAudio = null; cleanup?.(); finish(); };
-    audio.play().catch(() => {
-      // Autoplay blocked — browser was already cancelled, just finish
-      activeAudio = null;
-      finish();
-    });
   };
 
-  // ── 4. Edge TTS race (all proxies in parallel) ─────────────────────────
-  const edgeRace = fetchEdgeTTS(adapted, id).then(blob => {
-    if (!blob || deadlinePast || premiumActive) return;
-    const url   = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    playPremiumAudio(audio, () => URL.revokeObjectURL(url));
-  }).catch(() => { /* silent — browser continues */ });
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    setVoice();
+  } else {
+    // Voices not loaded yet — wait for them
+    window.speechSynthesis.onvoiceschanged = () => {
+      setVoice();
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }
 
-  // ── 5. Google TTS race ─────────────────────────────────────────────────
-  const googleRace = fetchGoogleTTS(adapted, id).then(b64 => {
-    if (!b64 || deadlinePast || premiumActive) return;
-    const audio = new Audio(`data:audio/mp3;base64,${b64}`);
-    playPremiumAudio(audio);
-  }).catch(() => { /* silent — browser continues */ });
+  let done = false;
+  const finish = () => { if (!done) { done = true; activeBrowserUtterance = null; onDone(); } };
 
-  // ── 6. Wait for deadline — after this browser is the confirmed winner ──
-  await Promise.race([deadline, edgeRace, googleRace]);
+  const safety = setTimeout(() => { window.speechSynthesis.cancel(); finish(); }, 15000);
+  u.onend   = () => { clearTimeout(safety); finish(); };
+  u.onerror = (e) => {
+    clearTimeout(safety);
+    if (e.error !== 'interrupted' && e.error !== 'canceled') console.warn('[TTS] Error:', e.error, '| Voice:', u.voice?.name);
+    finish();
+  };
 
-  // Let premium races finish in background if they haven't yet
-  // (they will call finish() themselves when audio ends)
+  activeBrowserUtterance = u;
+  window.speechSynthesis.speak(u);
 }
 
 // ── Playback queue ─────────────────────────────────────────────────────────
@@ -640,10 +544,9 @@ async function drainQueue(): Promise<void> {
     globalOnStreamStart = undefined;
   }
 
-  // Safety timeout — if onDone never fires (deadlock), force-advance after 12s
-  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+  const adapted = normalizeSpeechText(text);
+
   const onDone = () => {
-    if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
     isSpeakingSentence = false;
     if (speechQueue.length === 0 && speechBuffer.length === 0) {
       globalOnStreamEnd?.();
@@ -652,13 +555,7 @@ async function drainQueue(): Promise<void> {
     void drainQueue();
   };
 
-  safetyTimer = setTimeout(() => {
-    console.debug('[Voice] Safety timeout — forcing queue advance');
-    stopActiveAudio();
-    onDone();
-  }, 12000);
-
-  await playSentenceParallel(text, assistantId, onDone);
+  speakSentenceDirectly(adapted, assistantId, onDone);
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -679,7 +576,7 @@ export async function speakNigerian(
 }
 
 export function stopNigerianSpeech(): void {
-  stopActiveAudio();
+  stopActiveSpeech();
   speechBuffer       = '';
   speechQueue        = [];
   isSpeakingSentence = false;

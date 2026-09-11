@@ -60,6 +60,8 @@ export default function ModelViewer3D({
     } catch (e) {}
   };
 
+  const ModelViewerElement = 'model-viewer' as any;
+
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex">
@@ -73,7 +75,7 @@ export default function ModelViewer3D({
           </div>
 
           <div className="flex-1 flex items-stretch p-2">
-            <model-viewer
+            <ModelViewerElement
               ref={(el: any) => { viewerRef.current = el; }}
               src={modelUrl}
               alt="3D Model"
@@ -82,7 +84,7 @@ export default function ModelViewer3D({
               camera-controls
               exposure={exposure}
               style={{ width: '100%', height: '100%', backgroundColor: '#111' }}
-            ></model-viewer>
+            ></ModelViewerElement>
           </div>
 
           <div className="p-2 flex gap-2 items-center">

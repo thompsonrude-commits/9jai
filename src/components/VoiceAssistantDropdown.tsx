@@ -194,12 +194,8 @@ export default function VoiceAssistantDropdown({
     if (!next) {
       stopSpeaking();
       stopNigerianSpeech();
-    } else {
-      // Greet user — use phonetic spelling so TTS pronounces name correctly
-      const phonetic = AGENT_PHONETIC[currentAgent.id] || currentAgent.name;
-      const greeting = `My Oga, I be ${phonetic}. Na my pleasure to meet you. Wetin you want make I do for you today?`;
-      speakNigerian(greeting, currentAgent.id);
     }
+    // No greeting on toggle — speaker only speaks when there is actual text
   }, [isSpeakerOn, onSpeakerToggle, currentAgent]);
 
   useEffect(() => {

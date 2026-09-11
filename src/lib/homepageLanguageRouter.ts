@@ -273,15 +273,63 @@ export async function getDominantLanguage(text: string): Promise<string> {
 /**
  * Store and retrieve language context for a conversation
  */
-let conversationLanguageContext: string = 'pcm';
+const LANGUAGE_ALIASES: Record<string, string> = {
+  'nigerian pidgin': 'pcm',
+  pidgin: 'pcm',
+  naija: 'pcm',
+  'naija pidgin': 'pcm',
+  english: 'en',
+  'uk english': 'en',
+  'american english': 'en',
+  yoruba: 'yo',
+  igbo: 'ig',
+  hausa: 'ha',
+  edo: 'edo',
+  bini: 'edo',
+  'edo language': 'edo',
+  esan: 'esan',
+  efik: 'efk',
+  tiv: 'tiv',
+  fulfulde: 'fuv',
+  'fulani': 'fuv',
+  kanuri: 'kan',
+  swahili: 'sw',
+  swa: 'sw',
+  'nigerian pidgin english': 'pcm',
+  'english language': 'en',
+  'pidgin english': 'pcm',
+};
+
+export function normalizeLanguageCode(code: string | null | undefined): string {
+  const raw = (code ?? 'pcm').toString().trim();
+  if (!raw) return 'pcm';
+
+  const normalized = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+  const alias = LANGUAGE_ALIASES[normalized];
+  if (alias) return alias;
+
+  const direct = normalized.replace(/[^a-z]/g, '');
+  if (direct && Object.prototype.hasOwnProperty.call(LANGUAGE_ROUTES, direct)) {
+    return direct;
+  }
+
+  return 'pcm';
+}
+
+let conversationLanguageContext: string = normalizeLanguageCode(getConversationLanguage());
 
 export function setConversationLanguageContext(code: string): void {
-  conversationLanguageContext = code;
-  setConversationLanguage(code);
+  const normalized = normalizeLanguageCode(code);
+  conversationLanguageContext = normalized;
+  setConversationLanguage(conversationLanguageContext);
 }
 
 export function getConversationLanguageContext(): string {
-  return conversationLanguageContext || getConversationLanguage() || 'pcm';
+  const stored = normalizeLanguageCode(getConversationLanguage());
+  if (stored !== conversationLanguageContext) {
+    conversationLanguageContext = stored;
+  }
+  return conversationLanguageContext || 'pcm';
 }
 
 /**

@@ -154,6 +154,10 @@
         "function": "v1ConnectorRegistry"
       },
       {
+        "source": "/api/v1/visual-orchestrator",
+        "function": "v1VisualOrchestrator"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -9,6 +9,8 @@ export interface GeneratedImage {
   imageUrl: string;
   generatedAt: number;
   model: string;
+  provider?: string;
+  metadata?: Record<string, any> | null;
 }
 
 export type GenerationStage =
@@ -43,6 +45,21 @@ export async function fetchImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
+export function buildPollinationsImageUrl(prompt: string, width = 1024, height = 1024): string {
+  const normalized = (prompt || '').trim() || '3D concept art illustration';
+  const safePrompt = normalized
+    .replace(/\s+/g, ' ')
+    .replace(/[<>"']/g, '')
+    .slice(0, 180);
+  
+  // Use unique timestamp to avoid caching
+  const timestamp = Date.now();
+  const seed = Math.floor(Math.random() * 1000000);
+  
+  // Try Pollinations with proper encoding
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safePrompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux&_=${timestamp}`;
+}
+
 function toSvgDataUrl(label: string): string {
   const safe = (label || '9JAI visual concept').replace(/[<>&"']/g, '');
   const svg = `
@@ -70,19 +87,93 @@ export async function generateImageWithFallback(prompt: string): Promise<string>
   return toSvgDataUrl(enhancedPrompt);
 }
 
-export async function generateImage(prompt: string, onStage?: (stage: GenerationStage) => void): Promise<GeneratedImage> {
+// Professional design composite engine — renders exact provided text blocks onto a generated background.
+export async function generateDesignImage(prompt: string, textBlocks?: { type?: string; text: string; size?: number; weight?: string; align?: 'left'|'center'|'right' }[], width = 1200, height = 1600, backgroundUrl?: string): Promise<string> {
+  // If backgroundUrl provided, use it; otherwise generate a background via fallback
+  const bg = backgroundUrl || await generateImageWithFallback(prompt || 'professional background');
+
+  // Build SVG that composes background image and overlays text blocks with exact text
+  const safeBlocks = (textBlocks || []).map(b => ({ text: (b.text||'').replace(/[<>&"']/g, ''), size: b.size || 36, weight: b.weight || '700', align: b.align || 'center', type: b.type || 'body' }));
+
+  const textSvg = safeBlocks.map((b, i) => {
+    const fontSize = Math.max(18, Math.min(120, b.size));
+    const y = Math.round(140 + i * (fontSize + 18));
+    const anchor = b.align === 'left' ? 'start' : b.align === 'right' ? 'end' : 'middle';
+    const x = b.align === 'left' ? 80 : b.align === 'right' ? (width - 80) : Math.round(width / 2);
+    const fill = i === 0 ? '#ffffff' : '#f0fff5';
+    return `<text x="${x}" y="${y}" font-size="${fontSize}" font-weight="${b.weight}" fill="${fill}" font-family="Inter, Arial, sans-serif" text-anchor="${anchor}">${b.text}</text>`;
+  }).join('\n');
+
+  const svg = `<?xml version="1.0" encoding="utf-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n  <defs>\n    <filter id="f1" x="-20%" y="-20%" width="140%" height="140%">\n      <feGaussianBlur stdDeviation="2" />\n    </filter>\n  </defs>\n  <image href="${bg}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />\n  <rect x="0" y="0" width="${width}" height="${height}" fill="rgba(0,0,0,0.2)" />\n  <g>${textSvg}</g>\n</svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+export async function generateImage(prompt: string, options?: { preferredProviders?: string[]; allowFallback?: boolean }, onStage?: (stage: GenerationStage) => void): Promise<GeneratedImage> {
   onStage?.('analyzing');
   await new Promise((resolve) => setTimeout(resolve, 200));
   onStage?.('expanding');
-  const imageUrl = await generateImageWithFallback(prompt);
-  onStage?.('rendering');
-  return {
-    id: `img_local_${Date.now()}`,
-    prompt,
-    imageUrl,
-    generatedAt: Date.now(),
-    model: 'local',
-  };
+
+  // Call backend canonical generation endpoint. Backend decides provider (ComfyUI authoritative when enabled).
+  try {
+    onStage?.('planning');
+    // Attach Firebase ID token for authenticated backend calls
+    let headers: Record<string,string> = { 'Content-Type': 'application/json' };
+    try {
+      // Lazy import to avoid circular dependencies
+      const { auth } = await import('./firebase');
+      if (auth?.currentUser) {
+        const idToken = await auth.currentUser.getIdToken();
+        if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+      }
+    } catch (tokenErr) {
+      // If token acquisition fails, proceed without Authorization header — backend will reject if required
+    }
+
+    const response = await fetch('/api/v1/image/generate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ prompt }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Generation failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Generation failed');
+    }
+
+    // If backend returned a generationId, client should poll status to obtain the image URL
+    if (data.generationId) {
+      // Return a placeholder record with generationId in id so UI can poll /api/images/status/:id
+      return {
+        id: data.generationId,
+        prompt,
+        imageUrl: '',
+        generatedAt: Date.now(),
+        model: data.provider || 'comfyui',
+      };
+    }
+
+    // If backend returned immediate imageUrl (legacy fallback), return it
+    if (data.imageUrl) {
+      return {
+        id: `img_${Date.now()}`,
+        prompt,
+        imageUrl: data.imageUrl,
+        generatedAt: Date.now(),
+        model: data.model || data.provider || 'unknown',
+      };
+    }
+
+    throw new Error('No imageUrl or generationId returned');
+  } catch (err: any) {
+    console.warn('[ImageService] generateImage failed:', err?.message || err);
+    // Surface the error to the caller so the UI can show an honest failure and provenance.
+    throw err;
+  }
 }
 
 export async function generateMultipleImages(prompts: string[], onProgress?: (current: number, total: number) => void): Promise<GeneratedImage[]> {
