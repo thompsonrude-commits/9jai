@@ -1,8 +1,12 @@
 {
   "version": 2,
   "name": "9jai-backend",
-  "buildCommand": "cd functions && npm install && npm run build",
-  "outputDirectory": "functions/lib",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
   "routes": [
     { "src": "/health", "dest": "/api/health.js" },
     { "src": "/api/ai/chat", "dest": "/api/chat.js" },
@@ -13,7 +17,7 @@
     { "src": "/api/ai/health", "dest": "/api/health.js" },
     { "src": "/api/v1/health", "dest": "/api/health.js" },
     { "src": "/api/v1/providers", "dest": "/api/providers.js" },
-    { "src": "/(.*)", "dest": "/api/index.js" }
+    { "src": "/(.*)", "dest": "/api/index.ts" }
   ],
   "env": {
     "NODE_ENV": "production"

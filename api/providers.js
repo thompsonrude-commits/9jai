@@ -1,3 +1,10 @@
 // Vercel serverless function for providers endpoint
-const handler = require('../functions/lib/index').v1Providers;
-module.exports = handler;
+module.exports = async (req, res) => {
+  try {
+    const { v1Providers } = require('../functions/lib/index');
+    return await v1Providers(req, res);
+  } catch (error) {
+    console.error('Providers function error:', error);
+    res.status(500).json({ error: 'Function initialization failed', details: error.message });
+  }
+};
