@@ -1,6 +1,9 @@
 {
   "version": 2,
-  "name": "9jai-backend",
+  "name": "9jai",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "functions": {
     "api/**/*.js": {
       "memory": 1024,
@@ -16,7 +19,9 @@
     { "src": "/api/v1/image/generate", "dest": "/api/image.js" },
     { "src": "/api/ai/health", "dest": "/api/health.js" },
     { "src": "/api/v1/health", "dest": "/api/health.js" },
-    { "src": "/api/v1/providers", "dest": "/api/providers.js" }
+    { "src": "/api/v1/providers", "dest": "/api/providers.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "env": {
     "NODE_ENV": "production"

@@ -1,6 +1,5 @@
 node_modules
 .git
-dist
 .env*
 !.env.example
 *.log
@@ -10,4 +9,8 @@ test-*
 *.test.ts
 *.test.js
 functions/
-api/index.ts
+firebase.json
+.firebaserc
+.firebase/
+firestore.rules
+storage.rules
