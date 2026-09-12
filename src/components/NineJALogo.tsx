@@ -62,14 +62,54 @@ export default function NineJALogo({ state = 'idle', size = 200, className = '' 
           <div className="absolute top-[70%] left-[20%] w-[60%] h-px bg-[#00ff88]" />
         </div>
         
-        {/* BLACK AI text */}
-        <div className="relative z-10 text-center">
-          <div className="text-white font-black text-[1.4em] leading-none tracking-tight">
-            BLACK
-          </div>
-          <div className="text-[#00ff88] font-black text-[1.8em] tracking-[0.15em] mt-[0.1em]">
-            AI
-          </div>
+        {/* BLACKAI text as one word with letter animation */}
+        <div className="relative z-10">
+          <motion.div 
+            className="font-black text-[1.8em] leading-none tracking-tight"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            {['B', 'L', 'A', 'C', 'K'].map((letter, i) => (
+              <motion.span
+                key={i}
+                className="inline-block text-white"
+                animate={{
+                  y: isActive ? [0, -4, 0] : 0,
+                }}
+                transition={{
+                  duration: 0.6,
+                  repeat: isActive ? Infinity : 0,
+                  delay: i * 0.1,
+                  ease: "easeInOut"
+                }}
+              >
+                {letter}
+              </motion.span>
+            ))}
+            {['A', 'I'].map((letter, i) => (
+              <motion.span
+                key={i + 5}
+                className="inline-block text-[#00ff88]"
+                animate={{
+                  y: isActive ? [0, -4, 0] : 0,
+                  textShadow: isActive ? [
+                    '0 0 5px rgba(0, 255, 136, 0.5)',
+                    '0 0 15px rgba(0, 255, 136, 0.8)',
+                    '0 0 5px rgba(0, 255, 136, 0.5)',
+                  ] : '0 0 0px rgba(0, 255, 136, 0)',
+                }}
+                transition={{
+                  duration: 0.6,
+                  repeat: isActive ? Infinity : 0,
+                  delay: (i + 5) * 0.1,
+                  ease: "easeInOut"
+                }}
+              >
+                {letter}
+              </motion.span>
+            ))}
+          </motion.div>
         </div>
       </div>
       
@@ -130,13 +170,9 @@ export function NineJALogoSmall({ size = 40, className = '' }: { size?: number; 
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
       <div className="absolute inset-0 rounded-full border-2 border-[#00ff88]/40" />
       <div className="absolute inset-[10%] rounded-full bg-gradient-to-br from-[#1a1a1a] to-[#000000] flex items-center justify-center">
-        <div className="relative z-10 text-center">
-          <div className="text-white font-black text-[0.7em] leading-tight">
-            BLACK
-          </div>
-          <div className="text-[#00ff88] font-black text-[0.9em]">
-            AI
-          </div>
+        <div className="relative z-10">
+          <span className="text-white font-black text-[0.65em]">BLACK</span>
+          <span className="text-[#00ff88] font-black text-[0.65em]">AI</span>
         </div>
       </div>
     </div>
