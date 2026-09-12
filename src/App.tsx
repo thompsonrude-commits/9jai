@@ -120,7 +120,7 @@ export default function App() {
   const isUtilities = path === '/utilities';
   const isProfile = path === '/profile';
   const isDiscover = path === '/discover';
-  const isAdmin = path === '/admin';
+  const isAdminPath = path === '/admin';
   const isRepository = path === '/admin/repository';
   const isTraining = path === '/admin/training';
   const isTeam = path === '/admin/team';
