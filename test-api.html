@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>9JA AI API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .result { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffdddd; }
+        .success { background: #ddffdd; }
+    </style>
+</head>
+<body>
+    <h1>9JA AI API Test Page</h1>
+    
+    <p><strong>Your Vercel URL:</strong> <input type="text" id="baseUrl" placeholder="https://9jai.vercel.app" style="width: 300px;" /></p>
+    
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testProviders()">Test Providers</button>
+    <button onclick="testChat()">Test Chat</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value || window.location.origin;
+        }
+        
+        function addResult(title, data, isError = false) {
+            const div = document.createElement('div');
+            div.className = 'result ' + (isError ? 'error' : 'success');
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById('results').prepend(div);
+        }
+        
+        async function testHealth() {
+            try {
+                const url = getBaseUrl() + '/health';
+                console.log('Testing:', url);
+                const response = await fetch(url);
+                const data = await response.json();
+                addResult('✅ Health Check', { status: response.status, data });
+            } catch (error) {
+                addResult('❌ Health Check Failed', { error: error.message }, true);
+            }
+        }
+        
+        async function testProviders() {
+            try {
+                const url = getBaseUrl() + '/api/v1/providers';
+                console.log('Testing:', url);
+                const response = await fetch(url);
+                const data = await response.json();
+                addResult('✅ Providers', { status: response.status, data });
+            } catch (error) {
+                addResult('❌ Providers Failed', { error: error.message }, true);
+            }
+        }
+        
+        async function testChat() {
+            try {
+                const url = getBaseUrl() + '/api/v1/chat';
+                console.log('Testing:', url);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: 'Say hello in pidgin' }],
+                        temperature: 0.7
+                    })
+                });
+                const data = await response.json();
+                addResult('✅ Chat Response', { status: response.status, data });
+            } catch (error) {
+                addResult('❌ Chat Failed', { error: error.message }, true);
+            }
+        }
+        
+        // Auto-detect current URL if on Vercel
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            document.getElementById('baseUrl').value = window.location.origin;
+        }
+    </script>
+</body>
+</html>
