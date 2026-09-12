@@ -1,12 +1,12 @@
 import React from 'react';
 
 /**
- * 3D Rotating Logo — uses /logo.png from public folder
+ * 3D Rotating Logo — uses /logo.svg from public folder
  * Spins counter-clockwise (west to east, like Earth)
  * CSS 3D perspective gives a globe-like rotation effect
  */
 
-const LOGO_SRC = '/logo.png';
+const LOGO_SRC = '/logo.svg';
 
 // ── Shared 3D spin keyframes injected once ─────────────────────────────────
 const STYLE_ID = '9jai-logo-spin';
@@ -40,7 +40,7 @@ export default function RotatingLogo() {
     <div className="flex justify-center py-3">
       <img
         src={LOGO_SRC}
-        alt="9jai"
+        alt="BLACK AI"
         className="logo-spin-3d w-12 h-12 object-contain"
         style={{ background: 'none', borderRadius: 0 }}
       />
@@ -56,7 +56,7 @@ export function RotatingLogoHero() {
       <div className="absolute inset-0 rounded-full bg-[#00ff88]/10 blur-xl animate-pulse" style={{ transform: 'scale(1.5)' }} />
       <img
         src={LOGO_SRC}
-        alt="9jai"
+        alt="BLACK AI"
         className="logo-spin-3d-lg w-20 h-20 object-contain relative z-10"
         style={{ background: 'none', borderRadius: 0 }}
       />
@@ -70,7 +70,7 @@ export function RotatingLogoMedium() {
     <div>
       <img
         src={LOGO_SRC}
-        alt="9jai"
+        alt="BLACK AI"
         className="logo-spin-3d w-16 h-16 object-contain"
         style={{ background: 'none', borderRadius: 0 }}
       />
