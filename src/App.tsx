@@ -140,6 +140,8 @@ export default function App() {
       <Route path="/utilities" element={<div className="flex-1 overflow-y-auto"><Utilities /></div>} />
       <Route path="/profile" element={<div className="flex-1 overflow-y-auto"><Profile user={user} /></div>} />
       <Route path="/language/:langId" element={<LanguagePage user={user} isAdmin={isAdmin} />} />
+      {/* Admin login page - accessible to everyone */}
+      <Route path="/admin/login" element={<AdminLogin onLoginSuccess={() => navigate('/admin')} />} />
     </>
   );
 
@@ -183,7 +185,7 @@ export default function App() {
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-br from-[#0a2818] to-[#051f16] relative">
         <Routes>
           {sharedRoutes}
-          {isMasterAdmin && (
+          {isAdmin ? (
             <>
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/discover" element={<div className="flex-1 overflow-y-auto"><SearchLanguage onLanguageFound={(langName) => { let id = langName.toLowerCase().replace(/\s+/g, '-'); for (const [k, v] of Object.entries(LANGUAGE_ID_TO_NAME)) { if (v.toLowerCase() === langName.toLowerCase()) { id = k; break; } } navigate(`/language/${id}`); }} /></div>} />
@@ -191,6 +193,12 @@ export default function App() {
               <Route path="/admin/training" element={<div className="flex-1 overflow-y-auto"><AdminTraining /></div>} />
               <Route path="/admin/agents" element={<div className="flex-1 overflow-y-auto"><AgentManagement /></div>} />
               <Route path="/admin/team" element={<div className="flex-1 overflow-y-auto"><TeamManagement /></div>} />
+            </>
+          ) : (
+            <>
+              {/* Redirect non-admin users from /admin to login */}
+              <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+              <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
             </>
           )}
           <Route path="*" element={<Navigate to="/" replace />} />

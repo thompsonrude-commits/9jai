@@ -39,7 +39,8 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           loginTime: Date.now()
         };
         localStorage.setItem('lexicon_dev_user', JSON.stringify(adminUser));
-        window.location.href = '/admin/training';
+        // Reload to pick up the new state
+        window.location.href = '/admin';
         return;
       }
 
@@ -66,7 +67,8 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
             loginTime: Date.now()
           };
           localStorage.setItem('lexicon_dev_user', JSON.stringify(agentUser));
-          window.location.href = '/admin/training';
+          // Reload to pick up the new state
+          window.location.href = '/admin';
           return;
         }
       }

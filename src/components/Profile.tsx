@@ -12,7 +12,7 @@ export default function Profile({ user }: { user?: FirebaseUser | null }) {
         <div className="text-center max-w-md p-6 rounded-3xl border border-gray-200 bg-white shadow-sm">
           <h1 className="text-2xl font-serif text-[#008751] mb-3">Profile</h1>
           <p className="text-sm text-gray-600 mb-6">Sign in to access your saved chats, bookmarks, downloads and personal preferences.</p>
-          <a href="/admin" className="inline-flex items-center justify-center rounded-full bg-[#008751] px-5 py-3 text-sm font-bold text-white hover:bg-[#00A862] transition-colors">Sign in</a>
+          <a href="/admin/login" className="inline-flex items-center justify-center rounded-full bg-[#008751] px-5 py-3 text-sm font-bold text-white hover:bg-[#00A862] transition-colors">Sign in</a>
         </div>
       </div>
     );
