@@ -18,6 +18,8 @@ import Profile from './components/Profile';
 import GeneralAssistant from './components/GeneralAssistant';
 import SuperEcosystem from './components/SuperEcosystem';
 import AdminLogin from './components/AdminLogin';
+import AdminPage from './components/AdminPage';
+import HomePage from './components/HomePage';
 import UserLibrary from './components/UserLibrary';
 import MinimalSidebar from './components/MinimalSidebar';
 import { PlatformStatus } from './components/PlatformStatus';
@@ -100,24 +102,25 @@ export default function App() {
   // Handle new chat from sidebar
   const handleNewChat = useCallback(() => {
     setCurrentSessionId(undefined);
-    navigate('/');
+    navigate('/chat');
   }, [navigate]);
 
   // Handle session selection from sidebar
   const handleSelectSession = useCallback((sessionId: string) => {
     setCurrentSessionId(sessionId);
-    navigate('/');
+    navigate('/chat');
   }, [navigate]);
 
   // ── App layout (both authenticated and unauthenticated) ─────────────────
   const path = location.pathname;
   const isHome = path === '/';
-  const isChat = path === '/assistant';
+  const isChat = path === '/chat' || path === '/assistant';
   const isLanguages = path === '/languages';
   const isAfricanLanguages = path === '/african-languages';
   const isUtilities = path === '/utilities';
   const isProfile = path === '/profile';
   const isDiscover = path === '/discover';
+  const isAdmin = path === '/admin';
   const isRepository = path === '/admin/repository';
   const isTraining = path === '/admin/training';
   const isTeam = path === '/admin/team';
@@ -127,7 +130,8 @@ export default function App() {
   // Shared routes available to everyone
   const sharedRoutes = (
     <>
-      <Route path="/" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
+      <Route path="/" element={<HomePage user={user} isAdmin={isAdmin} />} />
+      <Route path="/chat" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/assistant" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/super" element={<SuperEcosystem user={user} isAdmin={isAdmin} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/languages" element={<div className="flex-1 overflow-y-auto"><LanguagesMenu /></div>} />
@@ -136,7 +140,6 @@ export default function App() {
       <Route path="/utilities" element={<div className="flex-1 overflow-y-auto"><Utilities /></div>} />
       <Route path="/profile" element={<div className="flex-1 overflow-y-auto"><Profile user={user} /></div>} />
       <Route path="/language/:langId" element={<LanguagePage user={user} isAdmin={isAdmin} />} />
-      <Route path="/admin" element={<AdminLogin onLoginSuccess={() => {}} />} />
     </>
   );
 
@@ -160,12 +163,12 @@ export default function App() {
   }
 
   // Authenticated layout — with minimal sidebar (ChatGPT-style)
-  // Show sidebar only on home/chat pages for clean UX
-  const showSidebar = isHome || isChat;
+  // Show sidebar only on chat pages for clean UX (not on home page)
+  const showSidebar = isChat;
 
   return (
     <div className="h-full bg-gradient-to-br from-[#0a2818] to-[#051f16] font-sans flex overflow-hidden">
-      {/* Minimal Sidebar */}
+      {/* Minimal Sidebar - only on chat pages */}
       {showSidebar && (
         <MinimalSidebar
           user={user}
@@ -182,6 +185,7 @@ export default function App() {
           {sharedRoutes}
           {isMasterAdmin && (
             <>
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/discover" element={<div className="flex-1 overflow-y-auto"><SearchLanguage onLanguageFound={(langName) => { let id = langName.toLowerCase().replace(/\s+/g, '-'); for (const [k, v] of Object.entries(LANGUAGE_ID_TO_NAME)) { if (v.toLowerCase() === langName.toLowerCase()) { id = k; break; } } navigate(`/language/${id}`); }} /></div>} />
               <Route path="/admin/repository" element={<div className="flex-1 overflow-y-auto"><AdminRepository onSelectLanguage={(langName) => { let id = langName.toLowerCase().replace(/\s+/g, '-'); for (const [k, v] of Object.entries(LANGUAGE_ID_TO_NAME)) { if (v.toLowerCase() === langName.toLowerCase()) { id = k; break; } } navigate(`/language/${id}`); }} /></div>} />
               <Route path="/admin/training" element={<div className="flex-1 overflow-y-auto"><AdminTraining /></div>} />
