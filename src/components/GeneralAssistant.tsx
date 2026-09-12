@@ -1361,7 +1361,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
     else if (id === 'languages') { navigate('/languages'); }
     else if (id === 'utilities') { navigate('/utilities'); }
     else if (id === 'settings') { setMessages(prev => [...prev, { role: 'model', content: '⚙️ Settings: Say "change theme dark", "change theme light", "speak yoruba", "speak english", or "speak pidgin" to customize the app.', timestamp: Date.now(), isNew: true }]); }
-    else if (id === 'about') { setMessages(prev => [...prev, { role: 'model', content: '🇳🇬 9ja AI — Africa\'s smartest AI assistant\n\nBuilt by Tomega Technology Limited\n© 2026 · Thompson Obosa\n\nFeatures: Chat · Image Generation · Video · Vision · OCR · Translation · Voice · Nigerian Languages · Web Search · Documents · Memory', timestamp: Date.now(), isNew: true }]); }
+    else if (id === 'about') { setMessages(prev => [...prev, { role: 'model', content: '🇳🇬 BLACK AI — Africa\'s smartest AI assistant\n\nBuilt by Tomega Technology Limited\n© 2026 · Thompson Obosa\n\nFeatures: Chat · Image Generation · Video · Vision · OCR · Translation · Voice · Nigerian Languages · Web Search · Documents · Memory', timestamp: Date.now(), isNew: true }]); }
   };
 
   return (
