@@ -102,13 +102,13 @@ export default function App() {
   // Handle new chat from sidebar
   const handleNewChat = useCallback(() => {
     setCurrentSessionId(undefined);
-    navigate('/chat');
+    navigate('/');
   }, [navigate]);
 
   // Handle session selection from sidebar
   const handleSelectSession = useCallback((sessionId: string) => {
     setCurrentSessionId(sessionId);
-    navigate('/chat');
+    navigate('/');
   }, [navigate]);
 
   // ── App layout (both authenticated and unauthenticated) ─────────────────
@@ -130,7 +130,7 @@ export default function App() {
   // Shared routes available to everyone
   const sharedRoutes = (
     <>
-      <Route path="/" element={<HomePage user={user} isAdmin={isAdmin} />} />
+      <Route path="/" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/chat" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/assistant" element={<GeneralAssistant user={user} isAdmin={isAdmin} currentSessionId={currentSessionId} onOpenLibrary={() => setShowLibrary(true)} />} />
       <Route path="/super" element={<SuperEcosystem user={user} isAdmin={isAdmin} onOpenLibrary={() => setShowLibrary(true)} />} />
@@ -163,12 +163,12 @@ export default function App() {
   }
 
   // Authenticated layout — with minimal sidebar (ChatGPT-style)
-  // Show sidebar only on chat pages for clean UX (not on home page)
-  const showSidebar = isChat;
+  // Show sidebar on home and chat pages
+  const showSidebar = isHome || isChat;
 
   return (
     <div className="h-full bg-gradient-to-br from-[#0a2818] to-[#051f16] font-sans flex overflow-hidden">
-      {/* Minimal Sidebar - only on chat pages */}
+      {/* Minimal Sidebar - shows on home/chat */}
       {showSidebar && (
         <MinimalSidebar
           user={user}
