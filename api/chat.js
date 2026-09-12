@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         'Authorization': `Bearer ${GROQ_KEY}`
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
+        model: 'openai/gpt-oss-120b',
         messages: messages,
         temperature: temperature,
         max_tokens: maxTokens,
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       text: text,
       provider: 'groq',
-      model: 'openai/gpt-oss-20b',
+      model: 'openai/gpt-oss-120b',
       latencyMs: 0,
       cached: false,
       tokensUsed: data.usage?.total_tokens
