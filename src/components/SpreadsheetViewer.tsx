@@ -68,36 +68,36 @@ export default function SpreadsheetViewer({ data, title = 'Data' }: SpreadsheetV
   const hasTotals = totals.some(t => t !== null);
 
   return (
-    <div className="w-full max-w-full rounded-2xl overflow-hidden border border-[#008751]/20 shadow-md bg-white">
+    <div className="w-full max-w-[95%] rounded-xl overflow-hidden border border-[#00ff88]/30 shadow-lg bg-[#1a1a1a] my-2">
       {/* Header */}
-      <div className="px-3 py-2 bg-[#008751]/5 border-b border-[#008751]/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Table2 size={16} className="text-[#008751]" />
-          <span className="text-sm font-bold text-[#008751]">{title}</span>
-          <span className="text-[10px] text-gray-400 font-medium">{data.rows.length} rows × {data.headers.length} cols</span>
+      <div className="px-3 py-2 bg-[#00ff88]/10 border-b border-[#00ff88]/20 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Table2 size={14} className="text-[#00ff88] flex-shrink-0" />
+          <span className="text-xs font-bold text-white truncate">{title}</span>
+          <span className="text-[9px] text-gray-400 font-medium flex-shrink-0">{data.rows.length} rows × {data.headers.length} cols</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={downloadXLSX} className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-[#008751] border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button onClick={downloadXLSX} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold text-[#00ff88] border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors">
             <Download size={10} /> Excel
           </button>
-          <button onClick={downloadCSV} className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-[#008751] border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors">
+          <button onClick={downloadCSV} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold text-[#00ff88] border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors">
             <Download size={10} /> CSV
           </button>
-          <button onClick={downloadJSON} className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-[#008751] border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors">
+          <button onClick={downloadJSON} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold text-[#00ff88] border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors">
             <Download size={10} /> JSON
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto max-h-80 overflow-y-auto">
+      {/* Table Container with Fixed Height and Scroll */}
+      <div className="overflow-auto max-h-[400px] scrollbar-thin scrollbar-thumb-[#00ff88]/30 scrollbar-track-transparent">
         <table className="w-full text-xs border-collapse">
-          <thead className="sticky top-0 bg-[#008751]/10 z-10">
+          <thead className="sticky top-0 bg-[#1a1a1a] z-10">
             <tr>
-              <th className="px-2 py-1.5 text-[10px] font-bold text-gray-500 border border-gray-200 w-8">#</th>
+              <th className="px-2 py-2 text-[10px] font-bold text-gray-500 border-b border-[#00ff88]/20 bg-[#1a1a1a] w-12 sticky left-0">#</th>
               {data.headers.map((h, i) => (
                 <th key={i} onClick={() => handleSort(i)}
-                  className="px-2 py-1.5 text-left text-[11px] font-bold text-[#008751] border border-gray-200 cursor-pointer hover:bg-[#008751]/20 whitespace-nowrap select-none">
+                  className="px-3 py-2 text-left text-[10px] font-bold text-[#00ff88] border-b border-[#00ff88]/20 cursor-pointer hover:bg-[#00ff88]/10 whitespace-nowrap select-none min-w-[120px]">
                   {h} {sortCol === i ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                 </th>
               ))}
@@ -105,20 +105,20 @@ export default function SpreadsheetViewer({ data, title = 'Data' }: SpreadsheetV
           </thead>
           <tbody>
             {sortedRows.map((row, ri) => (
-              <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-2 py-1 text-[10px] text-gray-400 border border-gray-100 text-center">{ri + 1}</td>
+              <tr key={ri} className={ri % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-[#1a1a1a]'}>
+                <td className="px-2 py-1.5 text-[9px] text-gray-500 border-b border-[#00ff88]/10 text-center sticky left-0 bg-inherit">{ri + 1}</td>
                 {row.map((cell, ci) => (
-                  <td key={ci} className="px-2 py-1 text-[11px] text-gray-800 border border-gray-100 whitespace-nowrap font-medium">
+                  <td key={ci} className="px-3 py-1.5 text-[10px] text-gray-200 border-b border-[#00ff88]/10 whitespace-nowrap font-medium">
                     {typeof cell === 'number' ? cell.toLocaleString() : String(cell)}
                   </td>
                 ))}
               </tr>
             ))}
             {hasTotals && (
-              <tr className="bg-[#008751]/10 font-bold sticky bottom-0">
-                <td className="px-2 py-1.5 text-[10px] text-gray-500 border border-gray-200 text-center">Σ</td>
+              <tr className="bg-[#00ff88]/10 font-bold sticky bottom-0">
+                <td className="px-2 py-2 text-[9px] text-gray-400 border-t-2 border-[#00ff88]/30 text-center sticky left-0 bg-[#00ff88]/10">Σ</td>
                 {totals.map((t, i) => (
-                  <td key={i} className="px-2 py-1.5 text-[11px] text-[#008751] border border-gray-200 font-bold">
+                  <td key={i} className="px-3 py-2 text-[10px] text-[#00ff88] border-t-2 border-[#00ff88]/30 font-bold">
                     {t !== null ? Number(t).toLocaleString() : ''}
                   </td>
                 ))}
@@ -127,6 +127,13 @@ export default function SpreadsheetViewer({ data, title = 'Data' }: SpreadsheetV
           </tbody>
         </table>
       </div>
+      
+      {/* Scroll Hint */}
+      {data.rows.length > 8 && (
+        <div className="px-3 py-1 bg-[#00ff88]/5 border-t border-[#00ff88]/20 text-center">
+          <p className="text-[9px] text-gray-500">Scroll to view all {data.rows.length} rows</p>
+        </div>
+      )}
     </div>
   );
 }
