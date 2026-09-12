@@ -40,8 +40,20 @@ export default function HomePage({ user, isAdmin }: HomePageProps) {
     }
   ];
 
+  // Debug: log current user status
+  console.log('HomePage - User:', user?.email, 'isAdmin:', isAdmin);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#0a0a0a] to-black flex flex-col items-center justify-center p-4 overflow-y-auto">
+      {/* Debug Banner - only show in development */}
+      {user && (
+        <div className="fixed top-4 right-4 bg-black/80 border border-[#00ff88]/30 rounded-lg p-3 text-xs z-50">
+          <p className="text-white/60">Logged in as:</p>
+          <p className="text-[#00ff88] font-mono">{user.email || 'Anonymous'}</p>
+          <p className="text-white/60 mt-1">Admin: {isAdmin ? '✅ Yes' : '❌ No'}</p>
+        </div>
+      )}
+      
       <div className="w-full max-w-6xl mx-auto">
         {/* Hero Section */}
         <motion.div
@@ -98,7 +110,7 @@ export default function HomePage({ user, isAdmin }: HomePageProps) {
               Start Chatting
             </button>
 
-            {isAdmin && (
+            {isAdmin ? (
               <button
                 onClick={() => navigate('/admin')}
                 className="px-8 py-4 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/20 flex items-center gap-2"
@@ -106,7 +118,11 @@ export default function HomePage({ user, isAdmin }: HomePageProps) {
                 <Users className="w-5 h-5" />
                 Admin Dashboard
               </button>
-            )}
+            ) : user ? (
+              <div className="px-8 py-4 bg-red-500/10 text-red-400 font-medium rounded-xl border border-red-500/30 text-sm">
+                Admin access: {user.email} (not authorized)
+              </div>
+            ) : null}
 
             {!user && (
               <button
@@ -117,6 +133,19 @@ export default function HomePage({ user, isAdmin }: HomePageProps) {
               </button>
             )}
           </motion.div>
+          
+          {/* Admin Access Info */}
+          {!isAdmin && user && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-sm text-yellow-200 max-w-md mx-auto"
+            >
+              <p className="font-bold mb-1">Need admin access?</p>
+              <p>Admin features require login with: <span className="font-mono text-yellow-300">obosathompsons@gmail.com</span></p>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Features Grid */}
