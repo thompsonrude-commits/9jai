@@ -1434,11 +1434,33 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
               const isImg = msg.role === 'model' && (msg.content.startsWith('__IMAGE__') || msg.content.startsWith('__GENERATE__') || msg.content.startsWith('__MAP__') || msg.content.startsWith('__VIDEO__'));
               const imgUrl = isImg ? (msg.content.startsWith('__IMAGE__') ? msg.content.replace('__IMAGE__', '') : msg.content) : null;
               
-              // Spreadsheet detection
-              const spreadsheetMatch = msg.role === 'model' && msg.content.match(/```spreadsheet\n([\s\S]*?)\n```/);
+              // Spreadsheet detection - handle multiple format variations
+              let spreadsheetMatch = null;
+              if (msg.role === 'model') {
+                // Try different patterns
+                spreadsheetMatch = 
+                  msg.content.match(/```spreadsheet\s*\n([\s\S]*?)\n```/) ||  // Standard format
+                  msg.content.match(/`spreadsheet\s*\n([\s\S]*?)$/m) ||        // Single backtick format
+                  msg.content.match(/```spreadsheet\s*\n?([\s\S]*?)```/) ||    // Variation with optional newline
+                  msg.content.match(/\{["\s]*title["\s]*:["\s]*.*?["\s]*,[\s\S]*?\}/); // Just raw JSON
+              }
+              
               let spreadsheetData: { title: string; headers: string[]; rows: (string|number)[][] } | null = null;
               let textContent = msg.content;
-              if (spreadsheetMatch) { try { spreadsheetData = JSON.parse(spreadsheetMatch[1]); textContent = msg.content.replace(/```spreadsheet\n[\s\S]*?\n```/, '').trim(); } catch {} }
+              
+              if (spreadsheetMatch) { 
+                try {
+                  const jsonStr = spreadsheetMatch[1] || spreadsheetMatch[0];
+                  spreadsheetData = JSON.parse(jsonStr);
+                  // Remove the spreadsheet block from text
+                  textContent = msg.content
+                    .replace(/```?spreadsheet\s*\n?[\s\S]*?```?/, '')
+                    .replace(/\{["\s]*title["\s]*:["\s]*.*?["\s]*,[\s\S]*?\}/, '')
+                    .trim();
+                } catch (e) {
+                  console.error('Failed to parse spreadsheet:', e, 'Match:', spreadsheetMatch[0]?.substring(0, 100));
+                }
+              }
 
               // Document detection
               const documentMatch = msg.role === 'model' && msg.content.match(/```document\n([\s\S]*?)\n```/);
