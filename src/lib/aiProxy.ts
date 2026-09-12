@@ -85,10 +85,17 @@ export async function proxyChat(options: ProxyChatOptions): Promise<ProxyChatRes
     }
 
     const data = (await response.json()) as ProxyChatResult;
+    console.log('[AIProxy] Received response from backend:', { 
+      status: response.status, 
+      hasText: !!data.text,
+      provider: data.provider,
+      textLength: data.text?.length,
+      fullData: data
+    });
     if (!data.text) throw new Error('Empty response from proxy');
     return data;
   } catch (err: any) {
-    console.warn('[AIProxy] proxyChat failed, using local fallback:', err?.message || err);
+    console.error('[AIProxy] proxyChat failed, using local fallback:', err?.message || err, err);
     return buildLocalChatResult(options.messages);
   }
 }
