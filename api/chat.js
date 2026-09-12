@@ -22,6 +22,7 @@ module.exports = async (req, res) => {
     // Direct Groq API call
     const GROQ_KEY = process.env.GROQ_API_KEY || process.env.GROQ_KEY;
     if (!GROQ_KEY) {
+      console.error('GROQ API key not found in environment variables');
       return res.status(500).json({ 
         error: 'API key not configured',
         text: 'Backend configuration error. Please contact administrator.',
@@ -29,6 +30,14 @@ module.exports = async (req, res) => {
         model: 'error'
       });
     }
+
+    console.log('Making Groq API request:', {
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      model: 'llama-3.3-70b-versatile',
+      messageCount: messages.length,
+      hasApiKey: !!GROQ_KEY,
+      apiKeyPrefix: GROQ_KEY.substring(0, 10) + '...'
+    });
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -48,12 +57,23 @@ module.exports = async (req, res) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Groq API error:', response.status, errorText);
+      
+      // Try to parse error details
+      let errorDetails = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetails = JSON.stringify(errorJson, null, 2);
+      } catch (e) {
+        // Keep as text
+      }
+      
       return res.status(500).json({
         error: 'AI provider error',
         text: 'Local fallback mode is active. Please try again.',
         provider: 'groq',
         model: 'error',
-        details: errorText.substring(0, 100)
+        details: errorDetails.substring(0, 200),
+        httpStatus: response.status
       });
     }
 
