@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         'Authorization': `Bearer ${GROQ_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         messages: messages,
         temperature: temperature,
         max_tokens: maxTokens,
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       text: text,
       provider: 'groq',
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       latencyMs: 0,
       cached: false,
       tokensUsed: data.usage?.total_tokens
