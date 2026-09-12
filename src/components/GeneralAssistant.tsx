@@ -54,6 +54,7 @@ import type { ImageGenerationRequest } from '../lib/newImageEngine';
 import SpeakerCube from './SpeakerCube';
 import NewImageBubble from './NewImageBubble';
 import DocumentViewer from './DocumentViewer';
+import GoogleAd from './GoogleAd';
 
 // ── Video Bubble ──────────────────────────────────────────────────────────
 function VideoBubble({ prompt }: { prompt: string }) {
@@ -1454,19 +1455,33 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
               }
 
               return (
-                <motion.div key={idx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  {isImg ? (
-                    msg.imgType === 'video' ? <VideoBubble prompt={msg.imagePrompt || 'video'} /> :
-                    msg.imgType === 'map' ? <InteractiveMap initialQuery={msg.mapPlace || 'Nigeria'} mode={msg.mapMode || 'search'} from={msg.mapFrom} to={msg.mapTo} /> :
-                    <ImageBubble url={imgUrl || ''} originalContent={msg.content} prompt={msg.imagePrompt || 'AI image'} imgType={msg.imgType === 'flag' ? 'flag' : 'ai'} label={msg.imgLabel || `🎨 ${msg.imagePrompt}`} onImageReady={updateMessageImage} msgIndex={idx} user={user} />
-                  ) : (
-                    <>
-                      {textContent && (msg.role === 'model' ? <TypewriterBubble content={textContent} isNew={!!msg.isNew} /> : <div className="max-w-[85%] bg-[#008751]/15 border border-[#008751]/25 px-4 py-3 rounded-2xl rounded-tr-sm text-white text-base leading-relaxed whitespace-pre-wrap">{msg.content}</div>)}
-                      {spreadsheetData && <SpreadsheetViewer data={spreadsheetData} title={spreadsheetData.title} />}
-                      {documentData && <DocumentViewer title={documentData.title} content={documentData.content} format={documentData.format as any} />}
-                    </>
+                <React.Fragment key={idx}>
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    {isImg ? (
+                      msg.imgType === 'video' ? <VideoBubble prompt={msg.imagePrompt || 'video'} /> :
+                      msg.imgType === 'map' ? <InteractiveMap initialQuery={msg.mapPlace || 'Nigeria'} mode={msg.mapMode || 'search'} from={msg.mapFrom} to={msg.mapTo} /> :
+                      <ImageBubble url={imgUrl || ''} originalContent={msg.content} prompt={msg.imagePrompt || 'AI image'} imgType={msg.imgType === 'flag' ? 'flag' : 'ai'} label={msg.imgLabel || `🎨 ${msg.imagePrompt}`} onImageReady={updateMessageImage} msgIndex={idx} user={user} />
+                    ) : (
+                      <>
+                        {textContent && (msg.role === 'model' ? <TypewriterBubble content={textContent} isNew={!!msg.isNew} /> : <div className="max-w-[85%] bg-[#008751]/15 border border-[#008751]/25 px-4 py-3 rounded-2xl rounded-tr-sm text-white text-base leading-relaxed whitespace-pre-wrap">{msg.content}</div>)}
+                        {spreadsheetData && <SpreadsheetViewer data={spreadsheetData} title={spreadsheetData.title} />}
+                        {documentData && <DocumentViewer title={documentData.title} content={documentData.content} format={documentData.format as any} />}
+                      </>
+                    )}
+                  </motion.div>
+                  
+                  {/* Ad placement: Show ad after every 6 messages */}
+                  {(idx + 1) % 6 === 0 && idx > 0 && (
+                    <div className="w-full flex justify-center py-3">
+                      <GoogleAd 
+                        adSlot="1234567890"
+                        adFormat="auto"
+                        responsive
+                        className="max-w-[728px] w-full"
+                      />
+                    </div>
                   )}
-                </motion.div>
+                </React.Fragment>
               );
             })}
 
