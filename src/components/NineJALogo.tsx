@@ -13,8 +13,8 @@ interface NineJALogoProps {
 }
 
 /**
- * 9JA AI Logo - Circular design with African continent
- * Matches the official design with network effects
+ * BLACK AI Logo - Circular design with tech accents
+ * Modern dark theme with bright green highlights
  */
 export default function NineJALogo({ state = 'idle', size = 200, className = '' }: NineJALogoProps) {
   const isActive = ['processing', 'listening', 'speaking', 'vision', 'ocr', 'image', 'video', 'document'].includes(state);
@@ -51,25 +51,23 @@ export default function NineJALogo({ state = 'idle', size = 200, className = '' 
       />
       
       {/* Inner ring */}
-      <div className="absolute inset-[15%] rounded-full border-2 border-[#008751]/50" />
+      <div className="absolute inset-[15%] rounded-full border-2 border-[#00ff88]/50" />
       
       {/* Main logo circle */}
-      <div className="absolute inset-[18%] rounded-full bg-gradient-to-br from-[#0a3d2a] to-[#051f16] flex items-center justify-center">
-        {/* Africa continent shape (simplified) */}
-        <svg
-          viewBox="0 0 100 120"
-          className="absolute w-[35%] h-[35%] opacity-30 fill-[#00ff88]"
-          style={{ top: '25%' }}
-        >
-          <path d="M50,10 L55,15 L58,25 L60,35 L62,45 L63,55 L62,65 L60,75 L55,85 L50,95 L45,100 L40,105 L35,108 L30,108 L28,105 L27,100 L26,95 L25,85 L23,75 L22,65 L23,55 L25,45 L28,35 L32,25 L38,18 L45,12 Z" />
-        </svg>
+      <div className="absolute inset-[18%] rounded-full bg-gradient-to-br from-[#1a1a1a] to-[#000000] flex items-center justify-center">
+        {/* Circuit pattern accent */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-[30%] left-[20%] w-[60%] h-px bg-[#00ff88]" />
+          <div className="absolute top-[50%] left-[20%] w-[60%] h-px bg-[#00ff88]" />
+          <div className="absolute top-[70%] left-[20%] w-[60%] h-px bg-[#00ff88]" />
+        </div>
         
-        {/* 9JA text */}
+        {/* BLACK AI text */}
         <div className="relative z-10 text-center">
-          <div className="text-white font-black text-[2.8em] leading-none tracking-tight">
-            9<span className="text-[#00ff88]">JA</span>
+          <div className="text-white font-black text-[1.4em] leading-none tracking-tight">
+            BLACK
           </div>
-          <div className="text-[#00ff88] font-bold text-[0.9em] tracking-[0.2em] mt-[-0.2em]">
+          <div className="text-[#00ff88] font-black text-[1.8em] tracking-[0.15em] mt-[0.1em]">
             AI
           </div>
         </div>
@@ -131,17 +129,13 @@ export function NineJALogoSmall({ size = 40, className = '' }: { size?: number; 
   return (
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
       <div className="absolute inset-0 rounded-full border-2 border-[#00ff88]/40" />
-      <div className="absolute inset-[10%] rounded-full bg-gradient-to-br from-[#0a3d2a] to-[#051f16] flex items-center justify-center">
-        <svg
-          viewBox="0 0 100 120"
-          className="absolute w-[30%] h-[30%] opacity-20 fill-[#00ff88]"
-          style={{ top: '22%' }}
-        >
-          <path d="M50,10 L55,15 L58,25 L60,35 L62,45 L63,55 L62,65 L60,75 L55,85 L50,95 L45,100 L40,105 L35,108 L30,108 L28,105 L27,100 L26,95 L25,85 L23,75 L22,65 L23,55 L25,45 L28,35 L32,25 L38,18 L45,12 Z" />
-        </svg>
+      <div className="absolute inset-[10%] rounded-full bg-gradient-to-br from-[#1a1a1a] to-[#000000] flex items-center justify-center">
         <div className="relative z-10 text-center">
-          <div className="text-white font-black text-[1.2em] leading-none">
-            9<span className="text-[#00ff88]">JA</span>
+          <div className="text-white font-black text-[0.7em] leading-tight">
+            BLACK
+          </div>
+          <div className="text-[#00ff88] font-black text-[0.9em]">
+            AI
           </div>
         </div>
       </div>
