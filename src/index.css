@@ -125,3 +125,17 @@ body.theme-sunset {
   background-color: #fff7ed;
   color: #7c2d12;
 }
+
+/* Custom bouncing dots animation */
+@keyframes dotBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-dot-bounce {
+  animation: dotBounce 1.4s infinite ease-in-out;
+}

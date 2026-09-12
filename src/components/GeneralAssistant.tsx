@@ -372,7 +372,7 @@ function buildImageResult(rawPrompt: string): { type: 'map'|'flag'|'ai'|'video';
 }
 
 // ── Typewriter hook ───────────────────────────────────────────────────────
-function useTypewriter(text: string, speed = 18) {
+function useTypewriter(text: string, speed = 36) {  // Changed from 18 to 36 (50% slower)
   const [displayed, setDisplayed] = useState('');
   const prevText = useRef('');
   useEffect(() => {
@@ -431,7 +431,7 @@ function sanitizeDisplayText(value: string): string {
 
 function TypewriterBubble({ content, isNew }: { content: string; isNew: boolean }) {
   const safeContent = sanitizeDisplayText(content);
-  const displayed = useTypewriter(isNew ? safeContent : '', 21);
+  const displayed = useTypewriter(isNew ? safeContent : '', 42);  // Changed from 21 to 42 (50% slower)
   const text = isNew ? displayed : safeContent;
   return (
     <div className="max-w-[85%] bg-[#0d2318] border border-[#008751]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-green-100 text-base leading-[1.6] whitespace-pre-wrap shadow-[0_0_20px_rgba(0,135,81,0.1)] break-words">
@@ -1481,9 +1481,9 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="flex justify-start pb-2 px-4">
             <div className="max-w-[85%] bg-[#0d1f10] border border-[#008751]/20 px-4 py-3 rounded-2xl rounded-tl-sm text-white text-base leading-relaxed whitespace-pre-wrap flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#008751] animate-bounce inline-block" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-white animate-bounce inline-block" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[#008751] animate-bounce inline-block" style={{ animationDelay: '300ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#008751] animate-dot-bounce inline-block" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-white animate-dot-bounce inline-block" style={{ animationDelay: '200ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#008751] animate-dot-bounce inline-block" style={{ animationDelay: '400ms' }} />
               </div>
               <div className="flex-1">
                 <div className="text-sm text-[#00d37a] font-medium">9JAI is thinking…</div>
