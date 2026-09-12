@@ -56,7 +56,12 @@ module.exports = async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Groq API error:', response.status, errorText);
+      console.error('=== GROQ API ERROR ===');
+      console.error('Status:', response.status);
+      console.error('Status Text:', response.statusText);
+      console.error('Headers:', JSON.stringify([...response.headers.entries()]));
+      console.error('Response Body:', errorText);
+      console.error('======================');
       
       // Try to parse error details
       let errorDetails = errorText;
@@ -73,7 +78,8 @@ module.exports = async (req, res) => {
         provider: 'groq',
         model: 'error',
         details: errorDetails.substring(0, 200),
-        httpStatus: response.status
+        httpStatus: response.status,
+        statusText: response.statusText
       });
     }
 
