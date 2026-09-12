@@ -1434,45 +1434,50 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
               const isImg = msg.role === 'model' && (msg.content.startsWith('__IMAGE__') || msg.content.startsWith('__GENERATE__') || msg.content.startsWith('__MAP__') || msg.content.startsWith('__VIDEO__'));
               const imgUrl = isImg ? (msg.content.startsWith('__IMAGE__') ? msg.content.replace('__IMAGE__', '') : msg.content) : null;
               
-              // Spreadsheet detection - handle multiple format variations
-              let spreadsheetMatch = null;
-              if (msg.role === 'model') {
-                // Try different patterns
-                spreadsheetMatch = 
-                  msg.content.match(/```spreadsheet\s*\n([\s\S]*?)\n```/) ||  // Standard format
-                  msg.content.match(/`spreadsheet\s*\n([\s\S]*?)$/m) ||        // Single backtick format
-                  msg.content.match(/```spreadsheet\s*\n?([\s\S]*?)```/) ||    // Variation with optional newline
-                  msg.content.match(/\{["\s]*title["\s]*:["\s]*.*?["\s]*,[\s\S]*?\}/); // Just raw JSON
-              }
-              
+              // Detect and parse spreadsheet data
               let spreadsheetData: { title: string; headers: string[]; rows: (string|number)[][] } | null = null;
               let textContent = msg.content;
               
-              if (spreadsheetMatch) { 
-                try {
-                  const jsonStr = spreadsheetMatch[1] || spreadsheetMatch[0];
-                  spreadsheetData = JSON.parse(jsonStr);
-                  // Remove the spreadsheet block from text
-                  textContent = msg.content
-                    .replace(/```?spreadsheet\s*\n?[\s\S]*?```?/, '')
-                    .replace(/\{["\s]*title["\s]*:["\s]*.*?["\s]*,[\s\S]*?\}/, '')
-                    .trim();
-                } catch (e) {
-                  console.error('Failed to parse spreadsheet:', e, 'Match:', spreadsheetMatch[0]?.substring(0, 100));
+              if (msg.role === 'model') {
+                // Match spreadsheet blocks: ```spreadsheet\n{...}\n``` or `spreadsheet\n{...}
+                const spreadsheetRegex = /```?spreadsheet\s*\n?([\s\S]*?)```?/i;
+                const match = msg.content.match(spreadsheetRegex);
+                
+                if (match) {
+                  try {
+                    // Extract JSON and parse it
+                    let jsonData = match[1].trim();
+                    // Handle case where closing ``` might be missing
+                    if (!jsonData.endsWith('}')) {
+                      const jsonMatch = jsonData.match(/(\{[\s\S]*\})/);
+                      if (jsonMatch) jsonData = jsonMatch[1];
+                    }
+                    
+                    spreadsheetData = JSON.parse(jsonData);
+                    // Remove spreadsheet block from display text
+                    textContent = msg.content.replace(spreadsheetRegex, '').trim();
+                  } catch (error) {
+                    console.error('Spreadsheet parse error:', error);
+                  }
                 }
               }
 
-              // Document detection
-              const documentMatch = msg.role === 'model' && msg.content.match(/```document\n([\s\S]*?)\n```/);
+              // Detect and parse document data
               let documentData: { title: string; content: string; format?: string } | null = null;
-              if (documentMatch) {
-                try {
-                  documentData = JSON.parse(documentMatch[1]);
-                  textContent = textContent.replace(/```document\n[\s\S]*?\n```/, '').trim();
-                } catch {
-                  // If not valid JSON, treat the raw block as the document content
-                  documentData = { title: 'Document', content: documentMatch[1] };
-                  textContent = textContent.replace(/```document\n[\s\S]*?\n```/, '').trim();
+              
+              if (msg.role === 'model' && !spreadsheetData) {
+                const documentRegex = /```document\s*\n?([\s\S]*?)\n?```/i;
+                const docMatch = msg.content.match(documentRegex);
+                
+                if (docMatch) {
+                  try {
+                    documentData = JSON.parse(docMatch[1].trim());
+                    textContent = textContent.replace(documentRegex, '').trim();
+                  } catch {
+                    // Fallback: treat as plain document
+                    documentData = { title: 'Document', content: docMatch[1].trim() };
+                    textContent = textContent.replace(documentRegex, '').trim();
+                  }
                 }
               }
 
