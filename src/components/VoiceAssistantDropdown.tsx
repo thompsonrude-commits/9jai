@@ -40,7 +40,7 @@ const AGENT_PHONETIC: Record<string, string> = {
 // ── Assign agent per session — truly random, different every session ───────
 function getSessionAgent(): typeof ASSISTANTS[0] {
   // Check if this session already has an agent assigned
-  const stored = sessionStorage.getItem('9jai_agent');
+  const stored = sessionStorage.getItem('blackai_agent');
   if (stored) {
     const found = ASSISTANTS.find(a => a.id === stored);
     if (found) return found;
@@ -51,7 +51,7 @@ function getSessionAgent(): typeof ASSISTANTS[0] {
   crypto.getRandomValues(randomByte);
   const idx   = randomByte[0] % ASSISTANTS.length;
   const agent = ASSISTANTS[idx];
-  sessionStorage.setItem('9jai_agent', agent.id);
+  sessionStorage.setItem('blackai_agent', agent.id);
   return agent;
 }
 

@@ -219,7 +219,7 @@ export default function SvgImageGenerator({ prompt }: SvgImageGeneratorProps) {
     if (format === 'svg') {
       const data = new XMLSerializer().serializeToString(svgRef.current);
       const blob = new Blob([data], { type: 'image/svg+xml' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '9jai-image.svg'; a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'blackai-image.svg'; a.click();
       return;
     }
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
@@ -234,7 +234,7 @@ export default function SvgImageGenerator({ prompt }: SvgImageGeneratorProps) {
     img.onload = () => {
       ctx.scale(2, 2); ctx.drawImage(img, 0, 0, w, h);
       const a = document.createElement('a');
-      a.download = `9jai-image.${format}`;
+      a.download = `blackai-image.${format}`;
       a.href = canvas.toDataURL(format === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
       a.click();
       URL.revokeObjectURL(img.src);

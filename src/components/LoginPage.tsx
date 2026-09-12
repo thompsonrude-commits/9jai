@@ -48,7 +48,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#008751] to-[#00A862] flex items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#000000] to-[#1a1a1a] flex items-center justify-center p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -60,8 +60,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="bg-white px-6 py-8 text-center border-b border-gray-100">
             <div className="flex flex-col items-center gap-2">
               <RotatingLogoMedium />
-              <h1 className="text-2xl font-bold text-[#008751]">9jai</h1>
-              <p className="text-gray-500 text-sm">Nigerian Languages AI Platform</p>
+              <h1 className="text-2xl font-bold text-[#00ff88]">BLACK AI</h1>
+              <p className="text-gray-300 text-sm">Nigerian Languages AI Platform</p>
             </div>
           </div>
 

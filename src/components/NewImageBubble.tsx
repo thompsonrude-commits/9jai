@@ -158,11 +158,11 @@ export default function NewImageBubble({ request, onComplete }: NewImageBubblePr
   <!-- Footer -->
   <text x="${width/2}" y="${height - 40}" font-size="18" fill="white" opacity="0.7" 
     text-anchor="middle" font-family="Arial, sans-serif">
-    Powered by 9JAI
+    Powered by BLACK AI
   </text>
 </svg>`;
     
-    const fallbackUrl = `data:image/svg+xml;base64,${btoa(svg.replace('Powered by 9JAI', 'Placeholder image - no provider available'))}`;
+    const fallbackUrl = `data:image/svg+xml;base64,${btoa(svg.replace('Powered by BLACK AI', 'Placeholder image - no provider available'))}`;
     setImageUrl(fallbackUrl);
     setProvider('placeholder');
     setStatus('loading'); // Will trigger onLoad
@@ -178,7 +178,7 @@ export default function NewImageBubble({ request, onComplete }: NewImageBubblePr
 
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `9jai-${request.type || 'image'}-${Date.now()}.${format}`;
+    link.download = `blackai-${request.type || 'image'}-${Date.now()}.${format}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

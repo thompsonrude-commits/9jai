@@ -1,13 +1,13 @@
 {
-  "name": "9JAI — Africa's Smartest AI",
-  "short_name": "9JAI",
+  "name": "BLACK AI — Africa's Smartest AI",
+  "short_name": "BLACK AI",
   "description": "Africa's most advanced AI. Chat in Pidgin, Yoruba, Igbo, Hausa, Edo and 500+ African languages. Generate images, translate, transcribe voice and analyze documents.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#008751",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "categories": ["productivity", "education", "utilities", "social"],
   "lang": "en-NG",
   "dir": "ltr",
@@ -56,7 +56,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "9JAI AI Chat Interface"
+      "label": "BLACK AI Chat Interface"
     }
   ]
 }

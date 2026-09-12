@@ -640,7 +640,7 @@ export default function LanguageAssistant({ user, isAdmin, languageName, languag
                 <div className={`w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 mt-0.5 sm:mt-1 ${msg.role === 'user' ? 'bg-[#008751]' : 'bg-[#008751]/10 border border-[#008751]/20'}`}>
                   {msg.role === 'user'
                     ? (user?.photoURL ? <img src={user.photoURL} alt="" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl" referrerPolicy="no-referrer" /> : <User size={14} className="sm:w-4 sm:h-4 text-white" />)
-                    : <img src="/logo.png" alt="9jai" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" />}
+                    : <img src="/logo.png" alt="BLACK AI" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" />}
                 </div>
                 <div className={`flex flex-col gap-1 min-w-0 flex-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   {isImg ? (
@@ -681,13 +681,13 @@ export default function LanguageAssistant({ user, isAdmin, languageName, languag
           })}
           {isStreaming && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 sm:gap-3 mr-auto max-w-xs sm:max-w-3xl w-full">
-              <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl bg-[#008751]/10 border border-[#008751]/20 flex items-center justify-center shrink-0 mt-0.5 sm:mt-1"><img src="/logo.png" alt="9jai" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" /></div>
+              <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl bg-[#008751]/10 border border-[#008751]/20 flex items-center justify-center shrink-0 mt-0.5 sm:mt-1"><img src="/logo.png" alt="BLACK AI" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" /></div>
               <StreamingBubble content={streamingContent} />
             </motion.div>
           )}
           {isLoading && !isStreaming && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 sm:gap-3 mr-auto">
-              <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl bg-[#008751]/10 border border-[#008751]/20 flex items-center justify-center shrink-0 mt-0.5 sm:mt-1"><img src="/logo.png" alt="9jai" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" /></div>
+              <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg sm:rounded-xl bg-[#008751]/10 border border-[#008751]/20 flex items-center justify-center shrink-0 mt-0.5 sm:mt-1"><img src="/logo.png" alt="BLACK AI" className="w-6 sm:w-8 h-6 sm:h-8 rounded-lg object-cover" /></div>
               <div className="px-3 sm:px-5 py-2 sm:py-4 bg-white border border-[#008751]/15 rounded-lg sm:rounded-2xl rounded-tl-sm flex items-center gap-1">
                 <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-[#008751] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-[#008751] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

@@ -75,11 +75,11 @@ export default function PWAInstallBanner() {
 
             <div className="flex items-start gap-3">
               <div className="shrink-0 w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                <img src="/logo.png" alt="9JAI" className="w-10 h-10" />
+                <img src="/logo.png" alt="BLACK AI" className="w-10 h-10" />
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-base mb-1">Install 9JAI</h3>
+                <h3 className="font-bold text-base mb-1">Install BLACK AI</h3>
                 <p className="text-sm text-white/90 mb-3 leading-snug">
                   Add to your home screen for faster access and offline support
                 </p>

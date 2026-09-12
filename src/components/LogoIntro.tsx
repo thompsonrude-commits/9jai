@@ -75,7 +75,7 @@ export default function LogoIntro({ logoUrl, onComplete, duration = 3000 }: Logo
           {/* Logo image */}
           <motion.img
             src={logoUrl}
-            alt="9jai Logo"
+            alt="BLACK AI Logo"
             className="w-full h-full object-contain filter drop-shadow-xl"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

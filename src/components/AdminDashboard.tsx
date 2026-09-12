@@ -83,7 +83,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `9jai-platform-${Date.now()}.json`;
+    a.download = `blackai-platform-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

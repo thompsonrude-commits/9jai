@@ -95,7 +95,7 @@ export default function NewsHub({ languageName = 'Nigerian Languages' }: NewsHub
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden">
-                <img src="/logo.png" alt="9jai" className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl object-cover" />
+                <img src="/logo.png" alt="BLACK AI" className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl object-cover" />
               </div>
               <div>
                 <h1 className="text-lg sm:text-2xl font-serif text-[#008751]">News Hub</h1>

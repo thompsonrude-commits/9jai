@@ -83,7 +83,7 @@ export default function ImageBubble({ prompt, onRetry, user }: ImageBubbleProps)
     
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `9jai-${prompt.slice(0, 20).replace(/\s+/g, '-')}.${format}`;
+    link.download = `blackai-${prompt.slice(0, 20).replace(/\s+/g, '-')}.${format}`;
     link.click();
   };
 
@@ -144,7 +144,7 @@ export default function ImageBubble({ prompt, onRetry, user }: ImageBubbleProps)
                     AI Generated Image
                   </text>
                   <text x="512" y="650" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.6)" text-anchor="middle">
-                    Powered by 9JAI
+                    Powered by BLACK AI
                   </text>
                 </svg>
               `)}`;

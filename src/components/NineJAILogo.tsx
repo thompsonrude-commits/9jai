@@ -218,7 +218,7 @@ export default function NineJAILogo({ state = 'idle', audioLevel = 0, size = 160
       {showLogo && (
         <img
           src="/logo.png"
-          alt="9JAI"
+          alt="BLACK AI"
           style={{
             position: 'relative',
             width: size * 0.40,

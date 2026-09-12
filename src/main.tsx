@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
   caches.keys().then(names => {
     names.forEach(n => {
-      if (!n.includes('9jai-v3')) caches.delete(n);
+      if (!n.includes('blackai-v1')) caches.delete(n);
     });
   });
 }

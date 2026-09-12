@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient background -->
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="100%" stop-color="#00d470"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+  
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.2"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.1"/>
+  
+  <!-- Bold "BLACK AI" text -->
+  <!-- BLACK -->
+  <text x="256" y="200" font-family="Arial, sans-serif" font-size="72" font-weight="900" fill="url(#textGrad)" text-anchor="middle" letter-spacing="-2">BLACK</text>
+  
+  <!-- AI -->
+  <text x="256" y="290" font-family="Arial, sans-serif" font-size="96" font-weight="900" fill="#00ff88" text-anchor="middle" letter-spacing="8">AI</text>
+  
+  <!-- Tagline -->
+  <text x="256" y="340" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#00ff88" text-anchor="middle" opacity="0.7" letter-spacing="4">AFRICA'S SMARTEST AI</text>
+  
+  <!-- Tech accent - circuit dots -->
+  <g opacity="0.4">
+    <circle cx="140" cy="256" r="4" fill="#00ff88"/>
+    <circle cx="372" cy="256" r="4" fill="#00ff88"/>
+    <line x1="144" y1="256" x2="180" y2="256" stroke="#00ff88" stroke-width="1"/>
+    <line x1="332" y1="256" x2="368" y2="256" stroke="#00ff88" stroke-width="1"/>
+  </g>
+  
+  <!-- Corner accent lines -->
+  <g opacity="0.2" stroke="#00ff88" stroke-width="2">
+    <line x1="80" y1="80" x2="140" y2="80"/>
+    <line x1="80" y1="80" x2="80" y2="140"/>
+    <line x1="432" y1="80" x2="372" y2="80"/>
+    <line x1="432" y1="80" x2="432" y2="140"/>
+    <line x1="80" y1="432" x2="140" y2="432"/>
+    <line x1="80" y1="432" x2="80" y2="372"/>
+    <line x1="432" y1="432" x2="372" y2="432"/>
+    <line x1="432" y1="432" x2="432" y2="372"/>
+  </g>
+</svg>

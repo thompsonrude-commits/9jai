@@ -141,7 +141,7 @@ async function buildGeneralSystemPrompt(learningContext = '', personalizationCon
   
  return `**CRITICAL LANGUAGE RULE**: YOU MUST RESPOND ONLY IN ${langName.toUpperCase()}. EVERY SINGLE WORD MUST BE IN ${langName.toUpperCase()}. DO NOT USE ANY OTHER LANGUAGE.
 
-You are 9JAI — Africa's most intelligent AI companion. Built in ${currentYear}. You are a warm, brilliant friend who knows everything.
+You are BLACK AI — Africa's most intelligent AI companion. Built in ${currentYear}. You are a warm, brilliant friend who knows everything.
  
 # CURRENT CONTEXT (Real-time)
 - **Today**: ${dateStr}
@@ -441,7 +441,7 @@ function TypewriterBubble({ content, isNew }: { content: string; isNew: boolean 
   const displayed = useTypewriter(isNew ? safeContent : '', 42);  // Changed from 21 to 42 (50% slower)
   const text = isNew ? displayed : safeContent;
   return (
-    <div className="max-w-[85%] bg-[#0d2318] border border-[#008751]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-green-100 text-base leading-[1.6] whitespace-pre-wrap shadow-[0_0_20px_rgba(0,135,81,0.1)] break-words">
+    <div className="max-w-[85%] bg-[#1a1a1a] border border-[#00ff88]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-gray-100 text-base leading-[1.6] whitespace-pre-wrap shadow-[0_0_20px_rgba(0,255,136,0.1)] break-words">
       {text}
       {isNew && displayed.length < safeContent.length && <span className="inline-block w-2 h-4 bg-[#00ff88] ml-0.5 animate-pulse rounded-sm align-middle" />}
     </div>
@@ -682,7 +682,7 @@ function ImageBubble({ url, originalContent, prompt, imgType, label, onImageRead
   const handleDownload = useCallback((format: 'png'|'jpg') => {
     const src = finalSrc || imgSrc;
     if (!src) return;
-    if (src.startsWith('data:')) { const link = document.createElement('a'); link.download = `9jai-${prompt.slice(0,20).replace(/\s+/g,'-')}.${format}`; link.href = src; link.click(); return; }
+    if (src.startsWith('data:')) { const link = document.createElement('a'); link.download = `blackai-${prompt.slice(0,20).replace(/\s+/g,'-')}.${format}`; link.href = src; link.click(); return; }
     const canvas = document.createElement('canvas'); const img = new Image(); img.crossOrigin = 'anonymous';
     img.onload = () => { canvas.width = img.naturalWidth; canvas.height = img.naturalHeight; const ctx = canvas.getContext('2d')!; if (format === 'jpg') { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); } ctx.drawImage(img,0,0); const link = document.createElement('a'); link.download = `9jai-${prompt.slice(0,20).replace(/\s+/g,'-')}.${format}`; link.href = canvas.toDataURL(format==='jpg'?'image/jpeg':'image/png',0.95); link.click(); };
     img.src = src;
@@ -692,7 +692,7 @@ function ImageBubble({ url, originalContent, prompt, imgType, label, onImageRead
   const displaySrc = finalSrc || imgSrc;
 
   return (
-    <div className="max-w-[92%] rounded-2xl overflow-hidden border border-[#008751]/30 shadow-lg bg-[#07110d]">
+    <div className="max-w-[92%] rounded-2xl overflow-hidden border border-[#00ff88]/30 shadow-lg bg-[#0a0a0a]">
       {(status === 'generating' || status === 'loading') && <CinematicImageLoader prompt={prompt} progress={progress} provider={providerLabel} />}
       {imgSrc && <img src={imgSrc} alt={prompt} className="hidden" onLoad={handleImgLoad} onError={handleImgError} />}
       {status === 'loaded' && displaySrc && <img src={displaySrc} alt={prompt} className="w-full h-auto block" />}
@@ -701,15 +701,15 @@ function ImageBubble({ url, originalContent, prompt, imgType, label, onImageRead
           <p className="text-3xl mb-2">😔</p>
           <p className="text-sm font-bold text-green-300 mb-1">Image generation failed</p>
           <p className="text-xs text-green-600 mb-3">{errorMsg || 'All providers unavailable'}</p>
-          <button onClick={handleRetry} className="px-4 py-2 bg-[#008751] text-white text-xs font-bold rounded-xl hover:bg-[#006b40] transition-colors">🔄 Try Again</button>
+          <button onClick={handleRetry} className="px-4 py-2 bg-[#00ff88] text-black text-xs font-bold rounded-xl hover:bg-[#00d470] transition-colors">🔄 Try Again</button>
         </div>
       )}
       {status === 'loaded' && (
-        <div className="px-3 py-2 bg-[#0a1a12] border-t border-[#008751]/20 flex items-center gap-2">
-          <span className="text-[10px] text-green-600 font-medium flex-1 truncate">🎨 {prompt.slice(0,50)}{prompt.length>50?'...':''}</span>
-          <button onClick={handleRetry} className="px-2 py-1 text-[10px] font-bold text-green-500 border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors" title="Regenerate">🔄</button>
-          <button onClick={() => handleDownload('png')} className="px-2 py-1 text-[10px] font-bold text-[#00ff88] border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors">⬇ PNG</button>
-          <button onClick={() => handleDownload('jpg')} className="px-2 py-1 text-[10px] font-bold text-[#00ff88] border border-[#008751]/30 rounded-lg hover:bg-[#008751]/10 transition-colors">⬇ JPG</button>
+        <div className="px-3 py-2 bg-[#1a1a1a] border-t border-[#00ff88]/20 flex items-center gap-2">
+          <span className="text-[10px] text-green-400 font-medium flex-1 truncate">🎨 {prompt.slice(0,50)}{prompt.length>50?'...':''}</span>
+          <button onClick={handleRetry} className="px-2 py-1 text-[10px] font-bold text-green-400 border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors" title="Regenerate">🔄</button>
+          <button onClick={() => handleDownload('png')} className="px-2 py-1 text-[10px] font-bold text-[#00ff88] border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors">⬇ PNG</button>
+          <button onClick={() => handleDownload('jpg')} className="px-2 py-1 text-[10px] font-bold text-[#00ff88] border border-[#00ff88]/30 rounded-lg hover:bg-[#00ff88]/10 transition-colors">⬇ JPG</button>
         </div>
       )}
     </div>
@@ -1365,7 +1365,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
   };
 
   return (
-    <div ref={containerRef} className="relative flex flex-col h-screen bg-gradient-to-br from-[#0a2818] to-[#051f16] text-white overflow-hidden">
+    <div ref={containerRef} className="relative flex flex-col h-screen bg-gradient-to-br from-[#000000] to-[#0d0d0d] text-white overflow-hidden">
       
       {/* Speaker Cube — fullscreen animated visualizer when speaker is ON */}
       <SpeakerCube
@@ -1387,7 +1387,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
 
       <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
         <label htmlFor="language-selector" className="sr-only">Response language</label>
-        <div className="rounded-full border border-[#008751]/30 bg-[#071a10]/90 px-2 py-1.5 backdrop-blur-sm shadow-[0_0_15px_rgba(0,135,81,0.12)]">
+        <div className="rounded-full border border-[#00ff88]/30 bg-[#0a0a0a]/90 px-2 py-1.5 backdrop-blur-sm shadow-[0_0_15px_rgba(0,255,136,0.12)]">
           <select
             id="language-selector"
             value={selectedLanguage}
@@ -1400,7 +1400,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
                 setInput((current) => current.trim() ? current : 'Translate this message into Edo language');
               }
             }}
-            className="min-w-[120px] appearance-none rounded-full border border-[#008751]/20 bg-transparent px-3 py-1.5 pr-8 text-xs font-medium text-[#dfffee] outline-none"
+            className="min-w-[120px] appearance-none rounded-full border border-[#00ff88]/20 bg-transparent px-3 py-1.5 pr-8 text-xs font-medium text-[#e0e0e0] outline-none"
             aria-label="Choose response language"
           >
             {LANGUAGE_OPTIONS.map((option) => (
@@ -1463,7 +1463,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
                       <ImageBubble url={imgUrl || ''} originalContent={msg.content} prompt={msg.imagePrompt || 'AI image'} imgType={msg.imgType === 'flag' ? 'flag' : 'ai'} label={msg.imgLabel || `🎨 ${msg.imagePrompt}`} onImageReady={updateMessageImage} msgIndex={idx} user={user} />
                     ) : (
                       <>
-                        {textContent && (msg.role === 'model' ? <TypewriterBubble content={textContent} isNew={!!msg.isNew} /> : <div className="max-w-[85%] bg-[#008751]/15 border border-[#008751]/25 px-4 py-3 rounded-2xl rounded-tr-sm text-white text-base leading-relaxed whitespace-pre-wrap">{msg.content}</div>)}
+                        {textContent && (msg.role === 'model' ? <TypewriterBubble content={textContent} isNew={!!msg.isNew} /> : <div className="max-w-[85%] bg-[#00ff88]/15 border border-[#00ff88]/25 px-4 py-3 rounded-2xl rounded-tr-sm text-white text-base leading-relaxed whitespace-pre-wrap">{msg.content}</div>)}
                         {spreadsheetData && <SpreadsheetViewer data={spreadsheetData} title={spreadsheetData.title} />}
                         {documentData && <DocumentViewer title={documentData.title} content={documentData.content} format={documentData.format as any} />}
                       </>
@@ -1487,7 +1487,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
 
             {isStreaming && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
-                <div className="max-w-[85%] bg-[#0d2318] border border-[#008751]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-green-100 text-base leading-[1.6] whitespace-pre-wrap shadow-[0_0_20px_rgba(0,135,81,0.1)] break-words">
+                <div className="max-w-[85%] bg-[#1a1a1a] border border-[#00ff88]/30 px-4 py-3 rounded-2xl rounded-tl-sm text-gray-100 text-base leading-[1.6] whitespace-pre-wrap shadow-[0_0_20px_rgba(0,255,136,0.1)] break-words">
                   {sanitizeDisplayText(streamingContent)}<span className="inline-block w-2 h-4 bg-[#00ff88] ml-0.5 animate-pulse rounded-sm align-middle" />
                 </div>
               </motion.div>
@@ -1500,14 +1500,14 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
       <AnimatePresence>
         {isBusy && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="flex justify-start pb-2 px-4">
-            <div className="max-w-[85%] bg-[#0d1f10] border border-[#008751]/20 px-4 py-3 rounded-2xl rounded-tl-sm text-white text-base leading-relaxed whitespace-pre-wrap flex items-center gap-3">
+            <div className="max-w-[85%] bg-[#1a1a1a] border border-[#00ff88]/20 px-4 py-3 rounded-2xl rounded-tl-sm text-white text-base leading-relaxed whitespace-pre-wrap flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#008751] animate-dot-bounce inline-block" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#00ff88] animate-dot-bounce inline-block" style={{ animationDelay: '0ms' }} />
                 <span className="w-2 h-2 rounded-full bg-white animate-dot-bounce inline-block" style={{ animationDelay: '200ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[#008751] animate-dot-bounce inline-block" style={{ animationDelay: '400ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#00ff88] animate-dot-bounce inline-block" style={{ animationDelay: '400ms' }} />
               </div>
               <div className="flex-1">
-                <div className="text-sm text-[#00d37a] font-medium">9JAI is thinking…</div>
+                <div className="text-sm text-[#00ff88] font-medium">BLACK AI is thinking…</div>
               </div>
             </div>
           </motion.div>
@@ -1520,7 +1520,7 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
           {pendingFiles.length > 0 && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex flex-wrap gap-1.5 mb-2">
               {pendingFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-[#008751]/10 border border-[#008751]/20 rounded-xl text-xs font-semibold text-[#008751]">
+                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-[#00ff88]/10 border border-[#00ff88]/20 rounded-xl text-xs font-semibold text-[#00ff88]">
                   {f.type === 'image' && f.preview ? <img src={f.preview} className="w-4 h-4 rounded object-cover" alt="" /> : <ImageIcon size={12} />}
                   <span className="max-w-[100px] truncate">{f.name}</span>
                   <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}><X size={11} /></button>
@@ -1532,24 +1532,24 @@ Extract COMPLETE and DETAILED information from any text, labels, or packaging vi
         <input ref={fileInputRef} type="file" multiple accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls" className="hidden" onChange={e => handleFileSelect(e.target.files)} />
         <AnimatePresence>
           {showAttachMenu && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 p-2 bg-[#0d1f10] border border-[#008751]/20 rounded-2xl flex gap-2">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 p-2 bg-[#1a1a1a] border border-[#00ff88]/20 rounded-2xl flex gap-2">
               {[{ icon: <ImageIcon size={16} />, label: 'Image', accept: 'image/*' }, { icon: <FileText size={16} />, label: 'Document', accept: '.pdf,.doc,.docx,.txt,.md,.csv' }, { icon: <Music size={16} />, label: 'Audio', accept: 'audio/*' }].map(item => (
-                <button key={item.label} onClick={() => { if (fileInputRef.current) { fileInputRef.current.accept = item.accept; fileInputRef.current.click(); } setShowAttachMenu(false); }} className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-[#008751] hover:bg-[#008751]/10 text-xs font-bold transition-colors">{item.icon}{item.label}</button>
+                <button key={item.label} onClick={() => { if (fileInputRef.current) { fileInputRef.current.accept = item.accept; fileInputRef.current.click(); } setShowAttachMenu(false); }} className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-[#00ff88] hover:bg-[#00ff88]/10 text-xs font-bold transition-colors">{item.icon}{item.label}</button>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
         {/* Pill bar - reduced size on mobile */}
-        <div className="flex items-end gap-1.5 sm:gap-2 bg-[#0d1f10] border border-[#008751]/25 rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2.5 focus-within:border-[#008751]/50 transition-colors">
-          <button type="button" onClick={() => setShowAttachMenu(v => !v)} className="shrink-0 p-1 sm:p-1.5 rounded-full text-[#008751]/50 hover:text-[#008751] transition-all"><Plus size={18} className="sm:w-5 sm:h-5" /></button>
-          <button type="button" onClick={() => { setVisionMode('vision'); setShowVision(true); }} className="shrink-0 p-1.5 sm:p-2 rounded-full text-[#008751]/50 hover:text-[#008751] transition-all" title="Vision Camera"><Camera size={20} className="sm:w-[22px] sm:h-[22px]" /></button>
-          <button type="button" onClick={() => { setVisionMode('ocr'); setShowVision(true); }} className="shrink-0 p-1.5 sm:p-2 rounded-full text-[#008751]/50 hover:text-[#008751] transition-all" title="OCR - Extract Text"><ScanText size={20} className="sm:w-[22px] sm:h-[22px]" /></button>
-          <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={placeholderText} rows={1} className="flex-1 bg-transparent outline-none text-sm sm:text-base placeholder-[#008751]/30 text-white resize-none max-h-20 sm:max-h-24 overflow-y-auto caret-[#008751]" />
+        <div className="flex items-end gap-1.5 sm:gap-2 bg-[#1a1a1a] border border-[#00ff88]/25 rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2.5 focus-within:border-[#00ff88]/50 transition-colors">
+          <button type="button" onClick={() => setShowAttachMenu(v => !v)} className="shrink-0 p-1 sm:p-1.5 rounded-full text-[#00ff88]/50 hover:text-[#00ff88] transition-all"><Plus size={18} className="sm:w-5 sm:h-5" /></button>
+          <button type="button" onClick={() => { setVisionMode('vision'); setShowVision(true); }} className="shrink-0 p-1.5 sm:p-2 rounded-full text-[#00ff88]/50 hover:text-[#00ff88] transition-all" title="Vision Camera"><Camera size={20} className="sm:w-[22px] sm:h-[22px]" /></button>
+          <button type="button" onClick={() => { setVisionMode('ocr'); setShowVision(true); }} className="shrink-0 p-1.5 sm:p-2 rounded-full text-[#00ff88]/50 hover:text-[#00ff88] transition-all" title="OCR - Extract Text"><ScanText size={20} className="sm:w-[22px] sm:h-[22px]" /></button>
+          <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={placeholderText} rows={1} className="flex-1 bg-transparent outline-none text-sm sm:text-base placeholder-[#00ff88]/30 text-white resize-none max-h-20 sm:max-h-24 overflow-y-auto caret-[#00ff88]" />
           <div className="shrink-0"><VoiceAssistantDropdown onVoiceInput={(text) => sendMessage(text)} onSpeakerToggle={(enabled) => { setSpeakerEnabled(enabled); if (!enabled) { setIsSpeakingNow(false); setCurrentSpokenText(''); stopNigerianSpeech(); } }} onAssistantChange={(id) => setSelectedAssistantId(id)} /></div>
           {isBusy ? (
             <button type="button" onClick={handleStop} className="shrink-0 p-1.5 sm:p-2 bg-red-500/80 text-white rounded-full active:scale-95"><Square size={14} className="sm:w-4 sm:h-4" fill="white" /></button>
           ) : (
-            <button type="button" onClick={() => sendMessage(input)} disabled={!input.trim() && pendingFiles.length === 0} className="shrink-0 p-1.5 sm:p-2 bg-[#008751] text-white rounded-full hover:bg-[#00a862] transition-all disabled:opacity-30 active:scale-95"><Send size={14} className="sm:w-4 sm:h-4" /></button>
+            <button type="button" onClick={() => sendMessage(input)} disabled={!input.trim() && pendingFiles.length === 0} className="shrink-0 p-1.5 sm:p-2 bg-[#00ff88] text-black rounded-full hover:bg-[#00d470] transition-all disabled:opacity-30 active:scale-95"><Send size={14} className="sm:w-4 sm:h-4" /></button>
           )}
         </div>
       </div>
